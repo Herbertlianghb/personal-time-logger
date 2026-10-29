@@ -1,0 +1,16 @@
+altgraph==0.17.5
+bcrypt==5.0.0
+cffi==2.1.1
+cryptography==50.0.2
+invoke==3.0.3
+packaging==26.3
+paramiko==4.0.0
+pefile==2024.8.26
+pycparser==3.12
+pyinstaller==6.20.0
+pyinstaller-hooks-contrib==2026.9
+pynacl==1.6.2
+pyside6-essentials==6.10.2
+pywin32-ctypes==0.2.3
+setuptools==84.2.1
+shiboken6==6.10.2

@@ -1,0 +1,18 @@
+{
+  "purpose": "Field contract only; not a live Base snapshot or account configuration",
+  "fields": [
+    {"name": "时间花销", "type": "text", "required": true},
+    {"name": "备注", "type": "text", "required": true},
+    {"name": "开始时间", "type": "datetime", "required": true},
+    {"name": "结束时间", "type": "datetime", "required": true},
+    {"name": "一级分类", "type": "select", "options": [{"name": "工作"}, {"name": "生活"}, {"name": "娱乐"}, {"name": "学习"}, {"name": "休息"}, {"name": "运动"}]},
+    {"name": "二级项目", "type": "select", "options": []},
+    {"name": "维度", "type": "select", "options": [{"name": "时间管理"}]},
+    {"name": "结果记录", "type": "text"},
+    {"name": "状态", "type": "number"},
+    {"name": "AI 赋能比例", "type": "number"},
+    {"name": "工作量", "type": "number"},
+    {"name": "工作量单位", "type": "text"},
+    {"name": "复盘", "type": "text"}
+  ]
+}

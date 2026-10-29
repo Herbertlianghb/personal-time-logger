@@ -1,0 +1,2261 @@
+{
+  "test_fixture": true,
+  "scope": "local-automated-control-only",
+  "contains_real_user_data": false,
+  "case_count": 31,
+  "sample_count": 123,
+  "cases": [
+    {
+      "name": "dedup",
+      "items": [
+        {
+          "sample_id": "TEST-001",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-dedup-logical",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800000,
+            "content": "开始背词。",
+            "event_id": "retry-0",
+            "source": "ws",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-002",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-dedup-logical",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800000,
+            "content": "开始背词。",
+            "event_id": "retry-1",
+            "source": "ws",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-003",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-dedup-logical",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800000,
+            "content": "开始背词。",
+            "event_id": "retry-2",
+            "source": "ws",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-004",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-dedup-logical",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800000,
+            "content": "开始背词。",
+            "event_id": "retry-3",
+            "source": "ws",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-005",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-dedup-logical",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800000,
+            "content": "开始背词。",
+            "event_id": "retry-4",
+            "source": "ws",
+            "kind": "receive"
+          }
+        }
+      ]
+    },
+    {
+      "name": "immutable",
+      "items": [
+        {
+          "sample_id": "TEST-006",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-immutable-logical",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800000,
+            "content": "开始阅读。",
+            "event_id": "test-event-6",
+            "source": "ws",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-007",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-immutable-logical",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793063400000,
+            "content": "开始阅读。",
+            "event_id": "test-event-7",
+            "source": "ws",
+            "kind": "receive"
+          }
+        }
+      ]
+    },
+    {
+      "name": "distinct",
+      "items": [
+        {
+          "sample_id": "TEST-008",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-distinct-0",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062808000,
+            "content": "做饭。",
+            "event_id": "test-event-8",
+            "source": "ws",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-009",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-distinct-1",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062809000,
+            "content": "做饭。",
+            "event_id": "test-event-9",
+            "source": "ws",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-010",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-distinct-2",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062810000,
+            "content": "做饭。",
+            "event_id": "test-event-10",
+            "source": "ws",
+            "kind": "receive"
+          }
+        }
+      ]
+    },
+    {
+      "name": "recall_first",
+      "items": [
+        {
+          "sample_id": "TEST-011",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-recall-logical",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": null,
+            "content": null,
+            "event_id": "test-event-11",
+            "source": "ws",
+            "kind": "recall",
+            "updated_at_ms": 1793062810000
+          }
+        },
+        {
+          "sample_id": "TEST-012",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-recall-logical",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800000,
+            "content": "已经撤回的原始报告。",
+            "event_id": "test-event-12",
+            "source": "ws",
+            "kind": "receive"
+          }
+        }
+      ]
+    },
+    {
+      "name": "edit",
+      "items": [
+        {
+          "sample_id": "TEST-013",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-edit-logical",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800000,
+            "content": "原稿。",
+            "event_id": "test-event-13",
+            "source": "ws",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-014",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-edit-logical",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800000,
+            "content": "修订稿。",
+            "event_id": "test-event-14",
+            "source": "ws",
+            "kind": "edit",
+            "updated_at_ms": 1793062820000
+          }
+        },
+        {
+          "sample_id": "TEST-015",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-edit-logical",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800000,
+            "content": "原稿。",
+            "event_id": "old-redelivery",
+            "source": "ws",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-016",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-edit-logical",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800000,
+            "content": "中间稿。",
+            "event_id": "test-event-16",
+            "source": "ws",
+            "kind": "edit",
+            "updated_at_ms": 1793062810000
+          }
+        }
+      ]
+    },
+    {
+      "name": "conflict",
+      "items": [
+        {
+          "sample_id": "TEST-017",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-conflict-logical",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800000,
+            "content": "版本甲。",
+            "event_id": "test-event-17",
+            "source": "ws",
+            "kind": "receive",
+            "updated_at_ms": 1793062801000
+          }
+        },
+        {
+          "sample_id": "TEST-018",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-conflict-logical",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800000,
+            "content": "版本乙。",
+            "event_id": "test-event-18",
+            "source": "ws",
+            "kind": "receive",
+            "updated_at_ms": 1793062801000
+          }
+        }
+      ]
+    },
+    {
+      "name": "permissions",
+      "items": [
+        {
+          "sample_id": "TEST-019",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-permissions-0",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-other-user",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062819000,
+            "content": "他人内容不应保存。",
+            "event_id": "test-event-19",
+            "source": "ws",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-020",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-permissions-1",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "app",
+            "message_type": "text",
+            "created_at_ms": 1793062820000,
+            "content": "机器人回声不应保存。",
+            "event_id": "test-event-20",
+            "source": "ws",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-021",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-permissions-2",
+            "chat_id": "test-other-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062821000,
+            "content": "其他会话不应保存。",
+            "event_id": "test-event-21",
+            "source": "ws",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-022",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-other-app",
+            "message_id": "test-permissions-3",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062822000,
+            "content": "其他应用不应保存。",
+            "event_id": "test-event-22",
+            "source": "ws",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-023",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-permissions-4",
+            "chat_id": "test-only-chat",
+            "sender_key": null,
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062823000,
+            "content": "没有身份不应保存。",
+            "event_id": "test-event-23",
+            "source": "ws",
+            "kind": "receive"
+          }
+        }
+      ]
+    },
+    {
+      "name": "commit",
+      "items": [
+        {
+          "sample_id": "TEST-024",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-commit-0",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062824000,
+            "content": "提交成功消息。",
+            "event_id": "test-event-24",
+            "source": "ws",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-025",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-commit-1",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062825000,
+            "content": "提交失败消息。",
+            "event_id": "test-event-25",
+            "source": "ws",
+            "kind": "receive"
+          }
+        }
+      ]
+    },
+    {
+      "name": "receipt",
+      "items": [
+        {
+          "sample_id": "TEST-026",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-receipt-0",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062826000,
+            "content": "收到第一条。",
+            "event_id": "test-event-26",
+            "source": "ws",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-027",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-receipt-1",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062827000,
+            "content": "提交前故障的第二条。",
+            "event_id": "test-event-27",
+            "source": "ws",
+            "kind": "receive"
+          }
+        }
+      ]
+    },
+    {
+      "name": "restart",
+      "items": [
+        {
+          "sample_id": "TEST-028",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-restart-0",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062828000,
+            "content": "重启前一。",
+            "event_id": "test-event-28",
+            "source": "ws",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-029",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-restart-1",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062829000,
+            "content": "重启前二。",
+            "event_id": "test-event-29",
+            "source": "ws",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-030",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-restart-2",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062830000,
+            "content": "重启前三。",
+            "event_id": "test-event-30",
+            "source": "ws",
+            "kind": "receive"
+          }
+        }
+      ]
+    },
+    {
+      "name": "lease",
+      "items": [
+        {
+          "sample_id": "TEST-031",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-lease-0",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062831000,
+            "content": "租约任务一。",
+            "event_id": "test-event-31",
+            "source": "ws",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-032",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-lease-1",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062832000,
+            "content": "租约任务二。",
+            "event_id": "test-event-32",
+            "source": "ws",
+            "kind": "receive"
+          }
+        }
+      ]
+    },
+    {
+      "name": "history",
+      "items": [
+        {
+          "sample_id": "TEST-033",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-0",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800100,
+            "content": "历史边界样本1。",
+            "event_id": "test-event-33",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-034",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-1",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800101,
+            "content": "历史边界样本2。",
+            "event_id": "test-event-34",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-035",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-2",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800102,
+            "content": "历史边界样本3。",
+            "event_id": "test-event-35",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-036",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-3",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800103,
+            "content": "历史边界样本4。",
+            "event_id": "test-event-36",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-037",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-4",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800104,
+            "content": "历史边界样本5。",
+            "event_id": "test-event-37",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-038",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-5",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800105,
+            "content": "历史边界样本6。",
+            "event_id": "test-event-38",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-039",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-6",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800106,
+            "content": "历史边界样本7。",
+            "event_id": "test-event-39",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-040",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-7",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800107,
+            "content": "历史边界样本8。",
+            "event_id": "test-event-40",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-041",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-8",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800108,
+            "content": "历史边界样本9。",
+            "event_id": "test-event-41",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-042",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-9",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800109,
+            "content": "历史边界样本10。",
+            "event_id": "test-event-42",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-043",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-10",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800110,
+            "content": "历史边界样本11。",
+            "event_id": "test-event-43",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-044",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-11",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800111,
+            "content": "历史边界样本12。",
+            "event_id": "test-event-44",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-045",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-12",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800112,
+            "content": "历史边界样本13。",
+            "event_id": "test-event-45",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-046",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-13",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800113,
+            "content": "历史边界样本14。",
+            "event_id": "test-event-46",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-047",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-14",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800114,
+            "content": "历史边界样本15。",
+            "event_id": "test-event-47",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-048",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-15",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800115,
+            "content": "历史边界样本16。",
+            "event_id": "test-event-48",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-049",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-16",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800116,
+            "content": "历史边界样本17。",
+            "event_id": "test-event-49",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-050",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-17",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800117,
+            "content": "历史边界样本18。",
+            "event_id": "test-event-50",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-051",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-18",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800118,
+            "content": "历史边界样本19。",
+            "event_id": "test-event-51",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-052",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-19",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800119,
+            "content": "历史边界样本20。",
+            "event_id": "test-event-52",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-053",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-20",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800120,
+            "content": "历史边界样本21。",
+            "event_id": "test-event-53",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-054",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-21",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800121,
+            "content": "历史边界样本22。",
+            "event_id": "test-event-54",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-055",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-22",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800122,
+            "content": "历史边界样本23。",
+            "event_id": "test-event-55",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-056",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-23",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800123,
+            "content": "历史边界样本24。",
+            "event_id": "test-event-56",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-057",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-24",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800124,
+            "content": "历史边界样本25。",
+            "event_id": "test-event-57",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-058",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-25",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800125,
+            "content": "历史边界样本26。",
+            "event_id": "test-event-58",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-059",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-26",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800126,
+            "content": "历史边界样本27。",
+            "event_id": "test-event-59",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-060",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-27",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800127,
+            "content": "历史边界样本28。",
+            "event_id": "test-event-60",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-061",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-28",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800128,
+            "content": "历史边界样本29。",
+            "event_id": "test-event-61",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-062",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-29",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800129,
+            "content": "历史边界样本30。",
+            "event_id": "test-event-62",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-063",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-30",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800130,
+            "content": "历史边界样本31。",
+            "event_id": "test-event-63",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-064",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-31",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800131,
+            "content": "历史边界样本32。",
+            "event_id": "test-event-64",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-065",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-32",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800132,
+            "content": "历史边界样本33。",
+            "event_id": "test-event-65",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-066",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-33",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800133,
+            "content": "历史边界样本34。",
+            "event_id": "test-event-66",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-067",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-34",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800134,
+            "content": "历史边界样本35。",
+            "event_id": "test-event-67",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-068",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-35",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800135,
+            "content": "历史边界样本36。",
+            "event_id": "test-event-68",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-069",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-36",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800136,
+            "content": "历史边界样本37。",
+            "event_id": "test-event-69",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-070",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-37",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800137,
+            "content": "历史边界样本38。",
+            "event_id": "test-event-70",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-071",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-38",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800138,
+            "content": "历史边界样本39。",
+            "event_id": "test-event-71",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-072",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-39",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800139,
+            "content": "历史边界样本40。",
+            "event_id": "test-event-72",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-073",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-40",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800140,
+            "content": "历史边界样本41。",
+            "event_id": "test-event-73",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-074",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-41",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800141,
+            "content": "历史边界样本42。",
+            "event_id": "test-event-74",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-075",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-42",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800142,
+            "content": "历史边界样本43。",
+            "event_id": "test-event-75",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-076",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-43",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800143,
+            "content": "历史边界样本44。",
+            "event_id": "test-event-76",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-077",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-44",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800144,
+            "content": "历史边界样本45。",
+            "event_id": "test-event-77",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-078",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-45",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800145,
+            "content": "历史边界样本46。",
+            "event_id": "test-event-78",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-079",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-46",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800146,
+            "content": "历史边界样本47。",
+            "event_id": "test-event-79",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-080",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-47",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800147,
+            "content": "历史边界样本48。",
+            "event_id": "test-event-80",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-081",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-48",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800148,
+            "content": "历史边界样本49。",
+            "event_id": "test-event-81",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-082",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-49",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800149,
+            "content": "历史边界样本50。",
+            "event_id": "test-event-82",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-083",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-50",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800150,
+            "content": "历史边界样本51。",
+            "event_id": "test-event-83",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-084",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-51",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800151,
+            "content": "历史边界样本52。",
+            "event_id": "test-event-84",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-085",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-52",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800152,
+            "content": "历史边界样本53。",
+            "event_id": "test-event-85",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-086",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-0",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800100,
+            "content": "历史边界样本1。",
+            "event_id": "history-duplicate-0",
+            "source": "history",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-087",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-history-52",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800152,
+            "content": "历史边界样本53。",
+            "event_id": "history-duplicate-52",
+            "source": "history",
+            "kind": "receive"
+          }
+        }
+      ]
+    },
+    {
+      "name": "crossday",
+      "items": [
+        {
+          "sample_id": "TEST-088",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-crossday-0",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062888000,
+            "content": "昨天23:30到今天00:30我一直学习。",
+            "event_id": "test-event-88",
+            "source": "ws",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-089",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-crossday-1",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062889000,
+            "content": "昨天23:50到今天00:10一直整理书桌。",
+            "event_id": "test-event-89",
+            "source": "ws",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-090",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-crossday-2",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062890000,
+            "content": "前天23:00到昨天01:00一直阅读。",
+            "event_id": "test-event-90",
+            "source": "ws",
+            "kind": "receive"
+          }
+        }
+      ]
+    },
+    {
+      "name": "overlap",
+      "items": [
+        {
+          "sample_id": "TEST-091",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-overlap-0",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062891000,
+            "content": "今天10:00到11:00一直写作。",
+            "event_id": "test-event-91",
+            "source": "ws",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-092",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-overlap-1",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062892000,
+            "content": "今天10:30到11:30一直审核另一项人工任务，属于混合投入。",
+            "event_id": "test-event-92",
+            "source": "ws",
+            "kind": "receive"
+          }
+        }
+      ]
+    },
+    {
+      "name": "ai",
+      "items": [
+        {
+          "sample_id": "TEST-093",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-ai-0",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062893000,
+            "content": "今天10:00到11:00本人一直学习。",
+            "event_id": "test-event-93",
+            "source": "ws",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-094",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-ai-1",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062894000,
+            "content": "AI今天10:00到12:00在后台运行。",
+            "event_id": "test-event-94",
+            "source": "ws",
+            "kind": "receive"
+          }
+        }
+      ]
+    },
+    {
+      "name": "detail",
+      "items": [
+        {
+          "sample_id": "TEST-095",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-detail-0",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062895000,
+            "content": "今天10:00到11:00一直制作测试视频。",
+            "event_id": "test-event-95",
+            "source": "ws",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-096",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-detail-1",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062896000,
+            "content": "其中对标与文案交叉进行，不知道各自分钟。",
+            "event_id": "test-event-96",
+            "source": "ws",
+            "kind": "receive"
+          }
+        }
+      ]
+    },
+    {
+      "name": "revision",
+      "items": [
+        {
+          "sample_id": "TEST-097",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-revision-0",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062897000,
+            "content": "今天10:00到11:00一直阅读。",
+            "event_id": "test-event-97",
+            "source": "ws",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-098",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-revision-1",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062898000,
+            "content": "更正：这次阅读结束时间是11:30。",
+            "event_id": "test-event-98",
+            "source": "ws",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-099",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-revision-2",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062899000,
+            "content": "再更正：这次阅读结束时间是12:00。",
+            "event_id": "test-event-99",
+            "source": "ws",
+            "kind": "receive"
+          }
+        }
+      ]
+    },
+    {
+      "name": "question",
+      "items": [
+        {
+          "sample_id": "TEST-100",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-question-0",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062900000,
+            "content": "昨天1:30睡的，日期记不清。",
+            "event_id": "test-event-100",
+            "source": "ws",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-101",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-question-1",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062901000,
+            "content": "不知道，先不管。",
+            "event_id": "test-event-101",
+            "source": "ws",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-102",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-question-2",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062902000,
+            "content": "补充：上午在家。",
+            "event_id": "test-event-102",
+            "source": "ws",
+            "kind": "receive"
+          }
+        }
+      ]
+    },
+    {
+      "name": "backup",
+      "items": [
+        {
+          "sample_id": "TEST-103",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-backup-0",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062903000,
+            "content": "备份前原文甲。",
+            "event_id": "test-event-103",
+            "source": "ws",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-104",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-backup-1",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062904000,
+            "content": "备份前原文乙。",
+            "event_id": "test-event-104",
+            "source": "ws",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-105",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-backup-2",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062905000,
+            "content": "备份后新消息不能因恢复丢掉。",
+            "event_id": "test-event-105",
+            "source": "ws",
+            "kind": "receive"
+          }
+        }
+      ]
+    },
+    {
+      "name": "forged",
+      "items": [
+        {
+          "sample_id": "TEST-106",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-forged-0",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062906000,
+            "content": "真实证据只有这一句。",
+            "event_id": "test-event-106",
+            "source": "ws",
+            "kind": "receive"
+          }
+        }
+      ]
+    },
+    {
+      "name": "report_effort",
+      "items": [
+        {
+          "sample_id": "TEST-107",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-report_effort-0",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062907000,
+            "content": "开始学习。",
+            "event_id": "test-event-107",
+            "source": "ws",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-108",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-report_effort-1",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062908000,
+            "content": "学习结束。",
+            "event_id": "test-event-108",
+            "source": "ws",
+            "kind": "receive"
+          }
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "items": [
+        {
+          "sample_id": "TEST-109",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-quote-0",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062909000,
+            "content": "今天10:00到11:00一直学习。",
+            "event_id": "test-event-109",
+            "source": "ws",
+            "kind": "receive"
+          }
+        }
+      ]
+    },
+    {
+      "name": "unknown",
+      "items": [
+        {
+          "sample_id": "TEST-110",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-unknown-0",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062910000,
+            "content": "刚刚刷了一会儿手机，起止不清楚。",
+            "event_id": "test-event-110",
+            "source": "ws",
+            "kind": "receive"
+          }
+        }
+      ]
+    },
+    {
+      "name": "negative",
+      "items": [
+        {
+          "sample_id": "TEST-111",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-negative-0",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062911000,
+            "content": "今天10:00到11:00一直整理。",
+            "event_id": "test-event-111",
+            "source": "ws",
+            "kind": "receive"
+          }
+        }
+      ]
+    },
+    {
+      "name": "boundary",
+      "items": [
+        {
+          "sample_id": "TEST-112",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-boundary-0",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062912000,
+            "content": "今天10:00到11:00一直看书。",
+            "event_id": "test-event-112",
+            "source": "ws",
+            "kind": "receive"
+          }
+        }
+      ]
+    },
+    {
+      "name": "duration",
+      "items": [
+        {
+          "sample_id": "TEST-113",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-duration-0",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062913000,
+            "content": "只记得今天背词83分钟，具体时段不清楚。",
+            "event_id": "test-event-113",
+            "source": "ws",
+            "kind": "receive"
+          }
+        }
+      ]
+    },
+    {
+      "name": "question_budget",
+      "items": [
+        {
+          "sample_id": "TEST-114",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-question_budget-0",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062914000,
+            "content": "同时存在日期、项目、持续投入三处歧义。",
+            "event_id": "test-event-114",
+            "source": "ws",
+            "kind": "receive"
+          }
+        }
+      ]
+    },
+    {
+      "name": "receipt_uncertain",
+      "items": [
+        {
+          "sample_id": "TEST-115",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-receipt_uncertain-0",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062915000,
+            "content": "回执响应丢失测试。",
+            "event_id": "test-event-115",
+            "source": "ws",
+            "kind": "receive"
+          }
+        }
+      ]
+    },
+    {
+      "name": "unsupported",
+      "items": [
+        {
+          "sample_id": "TEST-116",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-unsupported-0",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "image",
+            "created_at_ms": 1793062916000,
+            "content": "测试图片引用",
+            "event_id": "test-event-116",
+            "source": "ws",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-117",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-unsupported-1",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "file",
+            "created_at_ms": 1793062917000,
+            "content": "测试文件引用",
+            "event_id": "test-event-117",
+            "source": "ws",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-118",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-unsupported-2",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "audio",
+            "created_at_ms": 1793062918000,
+            "content": "测试音频引用",
+            "event_id": "test-event-118",
+            "source": "ws",
+            "kind": "receive"
+          }
+        }
+      ]
+    },
+    {
+      "name": "clock_units",
+      "items": [
+        {
+          "sample_id": "TEST-119",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-clock_units-0",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800,
+            "content": "秒时间戳拒绝。",
+            "event_id": "test-event-119",
+            "source": "ws",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-120",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-clock_units-1",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800000.5,
+            "content": "浮点时间戳拒绝。",
+            "event_id": "test-event-120",
+            "source": "ws",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-121",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-clock_units-2",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": true,
+            "content": "布尔时间戳拒绝。",
+            "event_id": "test-event-121",
+            "source": "ws",
+            "kind": "receive"
+          }
+        }
+      ]
+    },
+    {
+      "name": "recall_projection",
+      "items": [
+        {
+          "sample_id": "TEST-122",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-recall-projection",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800000,
+            "content": "今天10:00到11:00一直学习。",
+            "event_id": "test-event-122",
+            "source": "ws",
+            "kind": "receive"
+          }
+        },
+        {
+          "sample_id": "TEST-123",
+          "test_fixture": true,
+          "message": {
+            "app_scope": "test-only-app",
+            "message_id": "test-recall-projection",
+            "chat_id": "test-only-chat",
+            "sender_key": "test-only-owner",
+            "sender_type": "user",
+            "message_type": "text",
+            "created_at_ms": 1793062800000,
+            "content": null,
+            "event_id": "test-event-123",
+            "source": "ws",
+            "kind": "recall",
+            "updated_at_ms": 1793062810000
+          }
+        }
+      ]
+    }
+  ]
+}

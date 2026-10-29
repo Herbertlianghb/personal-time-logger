@@ -1,0 +1,12 @@
+{
+  "host": "personal-time-logger",
+  "ssh_host": "personal-time-logger",
+  "ssh_config": "C:/PersonalTimeLogger/private/ssh_config",
+  "ssh_executable": "ssh",
+  "remote_python": "/opt/personal-time-logger/.venv/bin/python",
+  "remote_cwd": "/opt/personal-time-logger",
+  "remote_config": "/var/lib/personal-time-logger/config.json",
+  "codex_executable": "codex",
+  "state_file": "C:/PersonalTimeLogger/private/worker-state.sqlite3",
+  "offsite_directory": "C:/PersonalTimeLogger/private/offsite"
+}

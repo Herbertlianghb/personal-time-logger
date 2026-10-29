@@ -1,0 +1,11 @@
+# Copy to your own private directory and replace every path/hostname.
+Host personal-time-logger
+    HostName your-server.example.invalid
+    Port 22
+    User time-logger
+    IdentityFile C:/PersonalTimeLogger/private/worker_ed25519
+    UserKnownHostsFile C:/PersonalTimeLogger/private/known_hosts
+    StrictHostKeyChecking yes
+    IdentitiesOnly yes
+    BatchMode yes
+    ConnectTimeout 15

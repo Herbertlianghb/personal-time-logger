@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily consistent time logger snapshot
+
+[Timer]
+OnCalendar=*-*-* 19:00:00 UTC
+Persistent=true
+RandomizedDelaySec=5m
+Unit=personal-time-logger-backup.service
+
+[Install]
+WantedBy=timers.target

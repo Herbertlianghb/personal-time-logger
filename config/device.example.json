@@ -1,0 +1,7 @@
+{
+  "device_id": "windows-example000000",
+  "host": "your-server.example.invalid",
+  "port": 22,
+  "host_public_key": "ssh-ed25519 REPLACE_WITH_TRUSTED_HOST_PUBLIC_KEY_BASE64",
+  "credential_target": "PersonalTimeLogger/device/windows-example000000"
+}

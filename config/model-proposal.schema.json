@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PersonalTimeLoggerModelProposalV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "blocks", "questions", "question_answers"],
+  "properties": {
+    "version": {"type": "integer", "enum": [1]},
+    "blocks": {"type": "array", "maxItems": 100, "items": {"$ref": "#/$defs/block"}},
+    "questions": {"type": "array", "maxItems": 2, "items": {"$ref": "#/$defs/question"}},
+    "question_answers": {"type": "array", "maxItems": 20, "items": {"$ref": "#/$defs/question_answer"}}
+  },
+  "$defs": {
+    "question_answer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["question_id", "answer_evidence_id", "disposition"],
+      "properties": {
+        "question_id": {"type": "string"},
+        "answer_evidence_id": {"type": "string"},
+        "disposition": {"type": "string", "enum": ["answered", "skipped"]}
+      }
+    },
+    "time_claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value_ms", "kind", "precision", "source_id", "quote", "date_resolution"],
+      "properties": {
+        "value_ms": {"type": ["integer", "null"]},
+        "kind": {"type": "string", "enum": ["explicit_user", "report_anchor", "estimate", "formal_record", "unknown"]},
+        "precision": {"type": "string", "enum": ["minute", "millisecond", "approximate", "unknown"]},
+        "source_id": {"type": ["string", "null"]},
+        "quote": {"type": "string"},
+        "date_resolution": {"type": "string", "enum": ["explicit", "contextual", "ambiguous", "unknown"]}
+      }
+    },
+    "human_interval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start_ms", "end_ms", "source_id", "quote"],
+      "properties": {
+        "start_ms": {"type": "integer"},
+        "end_ms": {"type": "integer"},
+        "source_id": {"type": "string"},
+        "quote": {"type": "string"}
+      }
+    },
+    "subtask": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "actor", "status", "evidence_refs"],
+      "properties": {
+        "name": {"type": "string"},
+        "actor": {"type": "string", "enum": ["human", "ai"]},
+        "status": {"type": "string", "enum": ["active", "paused", "ended", "unknown", "recalled", "cancelled"]},
+        "evidence_refs": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["activity_id", "supersedes_revision", "name", "actor", "role", "parent_activity_id", "category", "project", "status", "evidence_refs", "start", "end", "human_intervals", "reported_duration_seconds", "result", "uncertainty", "subtasks"],
+      "properties": {
+        "activity_id": {"type": ["string", "null"]},
+        "supersedes_revision": {"type": ["integer", "null"]},
+        "name": {"type": "string"},
+        "actor": {"type": "string", "enum": ["human", "ai"]},
+        "role": {"type": "string", "enum": ["primary", "detail"]},
+        "parent_activity_id": {"type": ["string", "null"]},
+        "category": {"type": ["string", "null"]},
+        "project": {"type": ["string", "null"]},
+        "status": {"type": "string", "enum": ["active", "paused", "ended", "unknown", "recalled", "cancelled"]},
+        "evidence_refs": {"type": "array", "items": {"type": "string"}},
+        "start": {"$ref": "#/$defs/time_claim"},
+        "end": {"$ref": "#/$defs/time_claim"},
+        "human_intervals": {"type": "array", "items": {"$ref": "#/$defs/human_interval"}},
+        "reported_duration_seconds": {"type": ["integer", "null"], "minimum": 0},
+        "result": {"type": "string"},
+        "uncertainty": {"type": "string"},
+        "subtasks": {"type": "array", "items": {"$ref": "#/$defs/subtask"}}
+      }
+    },
+    "question": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["semantic_key", "text", "ambiguity", "evidence_refs"],
+      "properties": {
+        "semantic_key": {"type": "string"},
+        "text": {"type": "string"},
+        "ambiguity": {"type": "string"},
+        "evidence_refs": {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  }
+}

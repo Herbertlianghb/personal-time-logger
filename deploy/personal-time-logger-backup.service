@@ -1,0 +1,17 @@
+[Unit]
+Description=Consistent backup of personal time logger
+
+[Service]
+Type=oneshot
+User=time-logger
+Group=time-logger
+WorkingDirectory=/opt/personal-time-logger
+ExecStart=/opt/personal-time-logger/.venv/bin/python -m time_logger --config /var/lib/personal-time-logger/config.json backup
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/personal-time-logger
+MemoryMax=128M
+LogNamespace=personal-time-logger
