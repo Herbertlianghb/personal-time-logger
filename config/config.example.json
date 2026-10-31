@@ -14,6 +14,7 @@
   "desktop_chat_mirror": false,
   "base_token": null,
   "time_table_id": null,
+  "time_standards_table_id": null,
   "accept_model_proposals": true,
   "history_interval_seconds": 3600,
   "categories": ["工作", "生活", "学习", "娱乐", "休息", "运动"],

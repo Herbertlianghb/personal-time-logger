@@ -138,7 +138,7 @@ class Store:
             (str(uuid.uuid4()), kind, key, packed(payload), now_ms(), str(uuid.uuid4())),
         )
 
-    def ingest(self, message):
+    def ingest(self, message, *, enqueue_processing=True):
         started = time.monotonic_ns()
         if message.get("app_scope") != self.scope:
             raise PermissionError("wrong_app_scope")
@@ -200,8 +200,9 @@ class Store:
                 current = False
             if current:
                 db.execute("UPDATE messages SET current_observation_id=? WHERE message_key=?", (oid, key))
-                task_type = "interpret" if row["message_type"] == "text" else "attachment"
-                self.enqueue(db, task_type, task_type + ":" + oid, {"observation_id": oid})
+                if enqueue_processing:
+                    task_type = "interpret" if row["message_type"] == "text" else "attachment"
+                    self.enqueue(db, task_type, task_type + ":" + oid, {"observation_id": oid})
             if previous is None and source == "ws" and kind != "recall":
                 self.enqueue(db, "receipt", "receipt:" + key, {"message_id": mid, "chat_id": chat_id, "created_at_ms": created})
             db.execute("INSERT OR REPLACE INTO settings VALUES('last_commit_at',?)", (packed(observed),))
@@ -283,7 +284,7 @@ class Store:
             db.execute("INSERT INTO proposals VALUES(?,?,?,?,?,?,?)", (pid, input_hash, model_id, prompt_version, now_ms(), packed(body), "proposed"))
             return pid
 
-    def accept_proposal(self, proposal_id):
+    def accept_proposal(self, proposal_id, *, enqueue_base_sync=True):
         from .proposal import validate_proposal
         with self.transaction() as db:
             p = db.execute("SELECT * FROM proposals WHERE proposal_id=?", (proposal_id,)).fetchone()
@@ -308,7 +309,8 @@ class Store:
                 revision = previous[0] + 1 if previous else 1
                 db.execute("UPDATE activities SET current_valid=0 WHERE activity_id=?", (aid,))
                 db.execute("INSERT INTO activities VALUES(?,?,?,?,1,?)", (aid, revision, proposal_id, packed(block), now_ms()))
-                self.enqueue(db, "base_sync", f"base:{aid}:{revision}", {"activity_id": aid, "revision": revision})
+                if enqueue_base_sync:
+                    self.enqueue(db, "base_sync", f"base:{aid}:{revision}", {"activity_id": aid, "revision": revision})
                 changed.append(aid)
                 from .reporting import affected_days
                 old_block = json.loads(previous[1]) if previous else None

@@ -40,10 +40,10 @@ def _explicit_clock_matches(value, quote, source, precision):
         hour, minute, second = int(match[1]), int(match[2]), int(match[3] or 0)
         hour = normalized_hour(hour, match.start())
         clocks.add((hour, minute, second))
-    # User shorthand such as “1348上厕所” is a clock expression. Do not
+    # User shorthand such as “853醒来” or “1348上厕所” is a clock expression. Do not
     # reinterpret a year, date component, quantity or money as HHmm.
-    for match in re.finditer(r"(?<![\d/.-])([01]\d|2[0-3])([0-5]\d)(?![\d年月日号元块秒分钟小时个/%.-])", quote):
-        clocks.add((int(match[1]), int(match[2]), 0))
+    for match in re.finditer(r"(?<![\d/.-])([01]?\d|2[0-3])([0-5]\d)(?![\d年月日号元块秒分钟小时个字词次页步人件天/%.-])", quote):
+        clocks.add((normalized_hour(int(match[1]), match.start()), int(match[2]), 0))
     pattern = r"([零〇一二两三四五六七八九十\d]{1,3})(?:点|时)(?:半|一刻|三刻|([零〇一二两三四五六七八九十\d]{1,3})分?)?"
     for match in re.finditer(pattern, quote):
         hour = _chinese_number(match[1])

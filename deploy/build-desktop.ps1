@@ -9,9 +9,12 @@ $SourceRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $VersionMatch = [regex]::Match((Get-Content -LiteralPath (Join-Path $SourceRoot 'time_logger\desktop_app.py') -Raw), '(?m)^VERSION = "([0-9]+\.[0-9]+\.[0-9]+)"')
 if (-not $VersionMatch.Success) { throw 'Desktop version is missing.' }
 $Version = $VersionMatch.Groups[1].Value
-if (-not $PythonPath) { $PythonPath = Join-Path $SourceRoot '.venv-desktop\Scripts\python.exe' }
-if (-not $BuildRoot) { $BuildRoot = Join-Path $SourceRoot '..\..\work\desktop-build' }
-if (-not $PackagePath) { $PackagePath = Join-Path (Split-Path -Parent $SourceRoot) ('PersonalTimeLogger-' + $Version) }
+if (-not $PythonPath) {
+    $PythonPath = Join-Path $SourceRoot 'work\desktop-venv\Scripts\python.exe'
+    if (-not (Test-Path -LiteralPath $PythonPath)) { $PythonPath = Join-Path $SourceRoot '.venv-desktop\Scripts\python.exe' }
+}
+if (-not $BuildRoot) { $BuildRoot = Join-Path $SourceRoot 'work\desktop-build' }
+if (-not $PackagePath) { $PackagePath = Join-Path $SourceRoot ('dist\PersonalTimeLogger-' + $Version) }
 $Python = (Resolve-Path -LiteralPath $PythonPath).Path
 $BuildRoot = [IO.Path]::GetFullPath($BuildRoot)
 $PackagePath = [IO.Path]::GetFullPath($PackagePath)

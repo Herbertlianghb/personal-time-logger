@@ -117,6 +117,41 @@ class FloatingPanelTests(unittest.TestCase):
             focus.assert_not_called()
             self.assertFalse(native_show.call_args.kwargs["activate"])
 
+    def test_floating_reveal_replaces_oversized_geometry_and_limits_long_content(self):
+        self.window.set_expanded(True)
+        self.window.setMaximumSize(16777215, 16777215)
+        self.window.resize(988, 740)
+        self.window.settings.setValue("geometry", self.window.saveGeometry())
+        self.window.editor.setPlainText("保留的草稿")
+        self.window.cluster_button.setText("密集节点：" + "10:00、" * 80)
+        self.window.cluster_button.show()
+        self.window.detail_label.setText("很长的节点说明" * 100)
+        self.window.save_state.setText("服务器已保存，等待整理" * 30)
+        self.hover()
+        area = self.panel._screen().availableGeometry()
+        self.assertEqual(self.window.width(), min(460, area.width() - self.panel.entry.width()))
+        self.assertLessEqual(self.window.height(), min(640, area.height() - 32))
+        self.assertTrue(self.window.editor.isVisible())
+        self.assertTrue(self.window.rect().contains(self.window.editor.mapTo(self.window, QPoint(0, 0))))
+        self.assertEqual(self.window.editor.toPlainText(), "保留的草稿")
+        self.window.set_expanded(False)
+        APP.processEvents()
+        self.assertLessEqual(self.window.height(), 300)
+
+    def test_floating_bounds_follow_small_screen_and_release_in_normal_mode(self):
+        self.window.set_expanded(True)
+        screen = Mock()
+        area = QRect(0, 0, 800, 600)
+        screen.availableGeometry.return_value = area
+        with patch.object(self.panel, "_screen", return_value=screen):
+            self.panel._position_panel(force=True)
+            self.assertEqual(self.window.width(), 460)
+            self.assertEqual(self.window.height(), 568)
+            self.assertTrue(area.contains(self.window.geometry()))
+        self.window._floating_changed(False)
+        self.assertEqual(self.window.maximumWidth(), 16777215)
+        self.assertEqual(self.window.maximumHeight(), 16777215)
+
     def test_passing_over_entry_does_not_expand(self):
         self.pointer = self.panel.entry.frameGeometry().center()
         self.panel.entry.entered.emit()

@@ -9,7 +9,7 @@ import sys
 import tempfile
 import time
 
-VERSION = "1.4.7"
+VERSION = "1.4.15"
 
 
 def data_directory():
@@ -76,7 +76,22 @@ def main(argv=None):
     parser.add_argument("--capture-calendar", action="store_true")
     parser.add_argument("--date")
     parser.add_argument("--expanded", action="store_true")
+    agent = parser.add_mutually_exclusive_group()
+    agent.add_argument("--agent-export")
+    agent.add_argument("--agent-import")
+    parser.add_argument("--agent-result")
     args = parser.parse_args(argv)
+    if args.agent_export or args.agent_import:
+        from .standalone_agent import run
+        if args.agent_import and not args.agent_result:
+            parser.error("--agent-import requires --agent-result")
+        try:
+            run(Path(args.config) if args.config else data_directory() / "device.json",
+                export_path=args.agent_export, day=args.date,
+                import_path=args.agent_import, result_path=args.agent_result)
+            return 0
+        except Exception:
+            return 1
     if args.capture:
         os.environ["QT_QPA_PLATFORM"] = "offscreen"
     from PySide6.QtCore import QLockFile, QSettings, QTimer, Qt
@@ -205,6 +220,10 @@ def main(argv=None):
             value = {"version": VERSION, "pid": os.getpid(), "hotkey": shortcut.label if shortcut else None,
                      "as_of_ms": time.time_ns() // 1000000, "visible": window.isVisible(),
                      "executable": sys.executable, "window_id": int(window.winId())}
+            quick = window._quick_input
+            if quick is not None:
+                value.update(quick_input_window_id=int(quick.winId()), quick_input_visible=quick.isVisible(),
+                             quick_input_pinned=quick.pin.isChecked())
             temp = health_path.with_suffix(".tmp")
             temp.write_text(json.dumps(value), encoding="utf-8")
             temp.replace(health_path)

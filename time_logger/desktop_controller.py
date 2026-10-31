@@ -33,6 +33,8 @@ class DesktopController(QObject):
     sync_busy = Signal(bool)
     heatmap_snapshot = Signal(dict)
     heatmap_state = Signal(str)
+    daily_progress = Signal(dict)
+    daily_progress_state = Signal(str)
 
     def __init__(self, config, state_path, transport=None):
         super().__init__()
@@ -57,6 +59,8 @@ class DesktopController(QObject):
         self.heatmap_requested = False
         self.heatmap_generation = 0
         self.heatmap_force = False
+        self.daily_progress_requested = True
+        self.daily_progress_refreshed_at = 0
 
     def get_draft(self):
         return self.local.preference("draft", "")
@@ -93,7 +97,9 @@ class DesktopController(QObject):
         ids = {item["response"].get("observation_id") for item in own if item.get("response")}
         queued = [{**item, "source": "desktop", "text": item["text"],
                    "chat_mirror_status": chat_mirror_status(item.get("response") or {})} for item in own
-                  if item["stage"] != "archived" and not (item["stage"] == "organized" and (item.get("response") or {}).get("base_required") is False)]
+                  if item["stage"] != "archived"
+                  and not (item["stage"] == "server_saved" and (item.get("response") or {}).get("processing_enabled") is False)
+                  and not (item["stage"] == "organized" and (item.get("response") or {}).get("base_required") is False)]
         queued.extend(item for item in self.remote_pending if item.get("observation_id") not in ids)
         self.pending.emit(queued)
 
@@ -109,6 +115,8 @@ class DesktopController(QObject):
             base = {"local_saved": "已存本机，待上传", "server_saved": "服务器已保存，待整理",
                     "archived": "已归档，飞书已核验", "needs_review": "服务器已保存原文，更正对象有更新",
                     "local_needs_review": "本机原文已保留，更正对象有更新"}.get(stage, "原文已保留，等待处理")
+        if stage == "server_saved" and (item.get("response") or {}).get("processing_enabled") is False:
+            base = "服务器已保存原文"
         mirror = chat_mirror_status(item.get("response") or {})
         return base + (" · " + mirror if mirror else "")
 
@@ -156,6 +164,7 @@ class DesktopController(QObject):
         self.load_cached(self.day)
         self.refresh_requested = True
         self.refresh_generation += 1
+        self.daily_progress_requested = True
         self.wakeup.set()
 
     def request_heatmap(self, month, *, refresh=False, scope="month"):
@@ -193,13 +202,44 @@ class DesktopController(QObject):
         if month == self.heatmap_month and scope == self.heatmap_scope:
             self.heatmap_snapshot.emit(value)
             self.heatmap_state.emit("")
+        self._publish_daily_progress(value)
         self.heatmap_requested = generation != self.heatmap_generation
         if not self.heatmap_requested:
             self.heatmap_force = False
 
+    def _publish_daily_progress(self, value):
+        today = datetime.now(LOCAL_TZ).date().isoformat()
+        if not any(item.get("date") == today for item in value.get("days", [])):
+            return False
+        self.daily_progress.emit(value)
+        cache = value.get("cache", {})
+        if value.get("error") or cache.get("stale") or cache.get("local_cached") or cache.get("state") == "stale":
+            self.daily_progress_state.emit("缓存待刷新")
+        else:
+            self.daily_progress_requested = False
+            self.daily_progress_refreshed_at = time.monotonic()
+            self.daily_progress_state.emit("")
+        return True
+
+    def _refresh_daily_progress(self):
+        month = datetime.now(LOCAL_TZ).strftime("%Y-%m")
+        result = self.transport.request("heatmap", month=month, scope="month", refresh=False)
+        value = result.get("heatmap", result)
+        if value.get("month") != month or not isinstance(value.get("days"), list):
+            raise ValueError("daily_progress_month_mismatch")
+        if not self._publish_daily_progress(value):
+            raise ValueError("daily_progress_day_missing")
+        if value.get("as_of_ms") and not value.get("error") and value.get("cache", {}).get("state") != "stale":
+            self.local.set_preference("heatmap:" + month, value)
+
     def set_visible(self, value):
         self.visible = bool(value)
         if value:
+            month = datetime.now(LOCAL_TZ).strftime("%Y-%m")
+            cached = self.local.preference("heatmap:" + month)
+            if cached:
+                self._publish_daily_progress({**cached, "cache": {**cached.get("cache", {}), "local_cached": True}})
+            self.daily_progress_requested = True
             self.refresh_requested = True
             self.refresh_generation += 1
             self.wakeup.set()
@@ -266,8 +306,8 @@ class DesktopController(QObject):
         self.state.emit(self.latest_save_status())
 
     def _run(self):
-        last_refresh = upload_retry_after = refresh_retry_after = heatmap_retry_after = 0
-        upload_failures = refresh_failures = heatmap_failures = 0
+        last_refresh = upload_retry_after = refresh_retry_after = heatmap_retry_after = progress_retry_after = 0
+        upload_failures = refresh_failures = heatmap_failures = progress_failures = 0
         while not self.closed.is_set():
             self.wakeup.clear()
             now = time.monotonic()
@@ -275,21 +315,24 @@ class DesktopController(QObject):
                 retry = self._retry_requested
                 self._retry_requested = False
             if retry:
-                upload_retry_after = refresh_retry_after = heatmap_retry_after = 0
+                upload_retry_after = refresh_retry_after = heatmap_retry_after = progress_retry_after = 0
                 self.refresh_requested = True
                 self.refresh_generation += 1
+                self.daily_progress_requested = True
             queued = self.local.queued() if now >= upload_retry_after else []
             refresh_due = self.visible and now >= refresh_retry_after and (
                 self.refresh_requested or now - last_refresh >= 60)
             mirror_due = self.visible and now >= self.mirror_next_poll and any(
                 deadline > now for deadline in self.mirror_watch.values())
             heatmap_due = self.heatmap_visible and self.heatmap_requested and now >= heatmap_retry_after
-            if not (queued or refresh_due or mirror_due or heatmap_due or retry):
+            progress_due = self.visible and now >= progress_retry_after and (
+                self.daily_progress_requested or now - self.daily_progress_refreshed_at >= 60)
+            if not (queued or refresh_due or mirror_due or heatmap_due or progress_due or retry):
                 self.wakeup.wait(timeout=5)
                 continue
             self.sync_busy.emit(True)
             try:
-                uploaded = upload_failed = False
+                uploaded = upload_failed = history_failed = False
                 if queued:
                     try:
                         for body in queued:
@@ -335,6 +378,7 @@ class DesktopController(QObject):
                         refresh_failures = 0
                         refresh_retry_after = 0
                     except Exception:
+                        history_failed = True
                         refresh_failures += 1
                         refresh_retry_after = time.monotonic() + min(30, 5 * 2 ** min(refresh_failures - 1, 3))
                         self.state.emit(self.latest_save_status() + "（历史查询暂时受阻，稍后自动重试）")
@@ -350,6 +394,17 @@ class DesktopController(QObject):
                         heatmap_failures += 1
                         heatmap_retry_after = time.monotonic() + min(30, 5 * 2 ** min(heatmap_failures - 1, 3))
                         self.heatmap_state.emit("热力图暂时无法读取，将自动重试；请确认服务端已升级且已配置时间表。已有缓存仅供参考。")
+                if (not self.closed.is_set() and not upload_failed and not history_failed and self.visible
+                        and not self.local.queued() and time.monotonic() >= progress_retry_after) and (
+                        self.daily_progress_requested or uploaded or time.monotonic() - self.daily_progress_refreshed_at >= 60):
+                    try:
+                        self._refresh_daily_progress()
+                        progress_failures = 0
+                        progress_retry_after = time.monotonic() + 60
+                    except Exception:
+                        progress_failures += 1
+                        progress_retry_after = time.monotonic() + min(30, 5 * 2 ** min(progress_failures - 1, 3))
+                        self.daily_progress_state.emit("进度暂未更新")
                 self._emit_pending()
             finally:
                 self.sync_busy.emit(False)

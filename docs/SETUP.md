@@ -4,6 +4,8 @@
 
 日常不需要安装 Python、Git、Codex 或 Claude。你需要管理员从自己的服务器提供：服务器地址、SSH 端口、可信 Ed25519 主机公钥，以及登记新设备公钥的能力。这些都属于你自己的部署，本项目不提供公共服务器。
 
+不接飞书的独立实例按 [DESKTOP-ONLY.md](DESKTOP-ONLY.md) 登记设备，沿用相同桌面绑定流程。需要生成分类时间线时，另由本人 [Codex 按需整理](MANUAL-ORGANIZATION.md)；日常原文保存不依赖 Codex 在线。
+
 1. 取得 `PersonalTimeLogger` 对应版本的 Windows 分发包并完整解压，保留其中的 `_internal`、`licenses` 和说明文件。不要只复制 EXE。
 2. 双击包内 `安装.vbs`，或在 PowerShell 运行包内 `install-desktop.ps1`。安装到当前用户的 Programs 目录并创建桌面、开始菜单入口；无需管理员权限。首次安装默认不启用登录启动，需要时显式使用 `-StartWithWindows`；升级会保留已有受管的登录启动入口。若系统策略拦截脚本，查看脚本后按自己组织策略运行，不修改全机执行策略。
 3. 打开“个人时间记录”。干净用户环境首次启动会显示配置窗口。填写自己的服务器地址、端口和可信 `ssh-ed25519 ...` 主机公钥。主机公钥应从服务器控制台或管理员可信渠道取得，不能把未经核对的扫描结果直接当可信公钥。
@@ -49,7 +51,7 @@
 ```powershell
 python -m venv .venv-desktop
 & '.\.venv-desktop\Scripts\python.exe' -m pip install -r requirements.desktop.lock.txt
-& '.\deploy\build-desktop.ps1' -PythonPath '.\.venv-desktop\Scripts\python.exe' -BuildRoot '.\work\desktop-build' -PackagePath '.\dist\PersonalTimeLogger-1.4.7'
+& '.\deploy\build-desktop.ps1' -PythonPath '.\.venv-desktop\Scripts\python.exe' -BuildRoot '.\work\desktop-build' -PackagePath '.\dist\PersonalTimeLogger-1.4.15'
 ```
 
 构建脚本只收窄自身子进程 PATH，避免混入其他程序的 Qt/ICU 动态库，不修改全机 PATH。构建输出已存在时停止，使用新的输出目录；不要覆盖已装版本或用户数据。

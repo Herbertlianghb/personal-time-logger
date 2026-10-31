@@ -181,6 +181,8 @@ class HeatmapDialog(QDialog):
         when = datetime.fromtimestamp(stamp / 1000, LOCAL_TZ).strftime("%m-%d %H:%M") if stamp else "未知"
         state = "本机旧缓存" if cache.get("local_cached") else {"fresh": "已读取", "cached": "缓存", "stale": "旧缓存"}.get(cache.get("state"), "已读取")
         complete = " · 数据有缺口" if snapshot.get("completeness") != "complete" else ""
+        if snapshot.get("mode") == "desktop_only":
+            complete = " · 原文模式，未统计工时"
         error = " · 刷新受阻" if cache.get("refresh_error") or snapshot.get("error") else ""
         self.status.setText(f"{state} · 更新于 {when}{complete}{error}")
         self.status.setToolTip("\n".join(str(value) for value in snapshot.get("limitations", [])))
@@ -216,6 +218,8 @@ class HeatmapDialog(QDialog):
             self.card_captions["current"].setText("截至 " + anchor)
             self.card_captions["longest"].setText("仅限所选范围内的连续记录")
             self.summary.setText(f"{self.category} · {stats['record_count']} 条记录 · 含估算 {stats['estimated_count']} 条 · 起止不全 {stats['unknown_count']} 条，未推算其时长。连续天数表示有记录，不表示达标。")
+            if self.snapshot.get("mode") == "desktop_only":
+                self.summary.setText(f"{self.category} · {stats['record_count']} 条原文；按报告日期归日，未整理起止和分类，工时图表暂无数据。点击日期可查看原文。")
         else:
             for key in self.card_values:
                 self.card_values[key].setText("—")

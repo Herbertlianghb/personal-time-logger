@@ -35,6 +35,14 @@ class HeatmapUiTests(unittest.TestCase):
         self.assertIn("尚未读取", self.dialog.summary.text())
         self.assertEqual(self.dialog.card_values["total"].text(), "—")
 
+    def test_raw_record_counts_do_not_claim_hours_or_missing_feishu(self):
+        value = snapshot(seconds=None)
+        value.update(mode="desktop_only", completeness="raw_only")
+        self.dialog.receive_snapshot(value)
+        self.assertIn("原文模式", self.dialog.status.text())
+        self.assertIn("3 条原文", self.dialog.summary.text())
+        self.assertEqual(self.dialog.card_values["total"].text(), "暂无")
+
     def test_filter_uses_category_union_and_retains_unknown_entry(self):
         self.dialog.receive_snapshot(snapshot())
         self.assertIn("1小时", self.dialog.card_values["total"].text())

@@ -2,6 +2,8 @@
 
 适用于 Codex App、Codex CLI 或能读写用户本机文件的 Claude。Agent 使用自己的工具，按当前代码和用户实际环境操作；不要假设具备维护者的账号、路径、服务器或已保存配置。可复制入口见 [AGENT-PROMPTS.md](AGENT-PROMPTS.md)。
 
+使用管理员提供的不接飞书独立实例时，读取 [DESKTOP-ONLY.md](DESKTOP-ONLY.md)，不要索取飞书凭据。按需整理入口和提示词见 [MANUAL-ORGANIZATION.md](MANUAL-ORGANIZATION.md)；不自动创建定时任务。
+
 ## 必须读的最小文档
 
 - [SETUP.md](SETUP.md)：Windows 包、首次绑定、数据位置和失败处理。

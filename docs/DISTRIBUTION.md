@@ -16,12 +16,12 @@
 从源码根目录执行，输出路径由用户指定且必须尚不存在：
 
 ```powershell
-python '.\deploy\export-source.py' --output 'C:\Downloads\personal-time-logger-1.4.7-rc.1-source.zip'
+python '.\deploy\export-source.py' --output 'C:\Downloads\personal-time-logger-1.4.15-rc.1-source.zip'
 ```
 
 Windows可执行包由`build-desktop.ps1`和`package-desktop.py`生成，按[SETUP.md](SETUP.md)构建。普通用户使用完整单目录包和安装入口，不需要安装开发环境。构建产物不带设备配置、私钥、飞书Secret或数据库。`安装.vbs`是调用PowerShell的脚本入口，不是MSI或签名安装器。每次版本变更后仍须按当次授权验证自己的首次流程；源码导出成功和构建成功不等于接入成功。
 
-v1.4.7-rc.1试用文件为`personal-time-logger-1.4.7-rc.1-source.zip`与`PersonalTimeLogger-1.4.7-rc.1-Windows.zip`，均带[试用版说明](RELEASE-1.4.7.md)。Windows ZIP须完整解压；源码ZIP不带构建环境或运行数据。此前1.4.0及1.4.7本地候选包的文档不是本次公开试用文档。
+v1.4.15-rc.1试用文件为`personal-time-logger-1.4.15-rc.1-source.zip`与`PersonalTimeLogger-1.4.15-rc.1-Windows.zip`，均带[试用版说明](RELEASE-1.4.15.md)。Windows ZIP须完整解压；源码ZIP不带构建环境或运行数据。历史试用包及其原发布标签保留，不覆盖。
 
 GitHub内容只从公共源码白名单准备，不包含私人开发目录与内部协作说明。若沿用开发仓库历史，还须检查历史提交；`.gitignore`不会移除已经跟踪的内容或历史里的秘密。Windows ZIP作为Release附件提供，不将运行库、安装包、私人截图或内部交接放进源码提交。
 
@@ -29,4 +29,4 @@ GitHub内容只从公共源码白名单准备，不包含私人开发目录与�
 
 HTTP live 测试另需 `PTL_LIVE_FEISHU_CONFIG` 指向用户自己的受限应用配置文件；时间条件阳性对照须显式提供 `PTL_LIVE_POSITIVE_RECORD_ID` 和带时区的 `PTL_LIVE_POSITIVE_START`。缺少阳性对照时跳过该项，不使用任何维护者记录 ID。
 
-每次发布、部署和新增验证均以用户当次授权为准。v1.4.7-rc.1仅发布公共源码与试用包；新用户完整接入验证仍暂停，具体边界见试用版说明。
+每次发布、部署和新增验证均以用户当次授权为准。v1.4.15-rc.1发布公共源码与试用包；新用户完整接入验证仍暂停，具体边界见试用版说明。公开发布不自动升级任何人的设备或独立实例。

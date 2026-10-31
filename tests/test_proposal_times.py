@@ -34,6 +34,19 @@ class CitedTimeTests(unittest.TestCase):
         for text in ("2026年", "2026-10-27", "用了1348元", "1750分钟"):
             self.assertFalse(_explicit_clock_matches(timestamp("2026-10-27T20:26:00+08:00"), text, {"content": text}, "minute"))
 
+    def test_three_digit_clocks_and_explicit_day_period(self):
+        for text, expected in (("853醒来", "08:53"), ("910起床", "09:10"),
+                               ("930洗衣服", "09:30"), ("下午930结束", "21:30")):
+            with self.subTest(text=text):
+                value = timestamp("2026-10-27T" + expected + ":00+08:00")
+                self.assertTrue(_explicit_clock_matches(value, text, {"content": text}, "minute"))
+                self.assertFalse(_explicit_clock_matches(value + 60000, text, {"content": text}, "minute"))
+
+    def test_three_digit_quantities_are_not_clocks(self):
+        for text in ("853元", "853分钟", "853个", "853字", "853词", "853次", "853页", "8.53", "853.50元"):
+            with self.subTest(text=text):
+                self.assertFalse(_explicit_clock_matches(timestamp("2026-10-27T08:53:00+08:00"), text, {"content": text}, "minute"))
+
     def test_report_anchor_requires_the_cited_transition_quote(self):
         source = self.source("回来了背单词")
         candidate = block(source)

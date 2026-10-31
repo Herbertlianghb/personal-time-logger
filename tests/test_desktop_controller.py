@@ -4,11 +4,12 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 import tempfile
 import unittest
 from pathlib import Path
+from datetime import datetime
 from unittest.mock import patch
 
 from PySide6.QtWidgets import QApplication
 
-from time_logger.desktop_controller import DesktopController
+from time_logger.desktop_controller import DesktopController, LOCAL_TZ
 
 APP = QApplication.instance() or QApplication([])
 
@@ -236,9 +237,12 @@ class ControllerTests(unittest.TestCase):
         self.controller.day = "2026-10-26"
         self.controller._watch_chat_mirror(sid, response, uploaded=True, now=100)
         history = {"date": self.controller.day, "as_of_ms": 1000, "activities": [], "summary": {"human_seconds": None}}
+        today = datetime.now(LOCAL_TZ).date()
         self.transport.actions = [
             ("snapshot", {"server_now_ms": 1000, "submissions": [response], "pending": [], "questions": []}),
             ("history", {"history": history}),
+            ("heatmap", {"month": today.strftime("%Y-%m"), "as_of_ms": 1000,
+                         "days": [{"date": today.isoformat()}]}),
             ("status", {"server_now_ms": 2000, "submissions": [{**response, "chat_mirror_state": "sent"}]}),
         ]
         clock = [100]
@@ -249,7 +253,7 @@ class ControllerTests(unittest.TestCase):
         self.controller.wakeup = StepWakeup()
         with patch("time_logger.desktop_controller.time.monotonic", side_effect=lambda: clock[0]):
             self.controller._run()
-        self.assertEqual([op for op, fields in self.transport.calls], ["snapshot", "history", "status"])
+        self.assertEqual([op for op, fields in self.transport.calls], ["snapshot", "history", "heatmap", "status"])
         self.assertEqual(len(self.snapshots), 1)
 
     def _stepping_worker(self, on_wait=None):
@@ -369,6 +373,19 @@ class ControllerTests(unittest.TestCase):
         self.assertEqual([op for op, fields in self.transport.calls], ["snapshot", "history"])
         self.assertEqual(self.controller.local.list_submissions()[0]["client_submission_id"], sid)
         self.assertEqual(self.controller.local.list_submissions()[0]["response"], response)
+
+
+    def test_raw_receipt_keeps_saved_stage_without_permanent_processing_backlog(self):
+        self.controller.submit("raw record")
+        queued = self.controller.local.queued()[0]
+        self.controller.local.acknowledge(queued["client_submission_id"], {
+            "stage": "server_saved", "processing_enabled": False, "base_required": False,
+            "observation_id": "raw-one", "mode": "desktop_only"})
+        self.controller._emit_pending()
+        self.assertEqual(self.pending[-1], [])
+        self.assertEqual(self.controller.latest_save_status(), "服务器已保存原文")
+        self.assertEqual(self.controller.local.list_submissions()[0]["stage"], "server_saved")
+        self.assertEqual(self.controller.local.list_submissions()[0]["client_submission_id"], queued["client_submission_id"])
 
 
 if __name__ == "__main__":
