@@ -42,6 +42,7 @@ class StartupTests(unittest.TestCase):
             server.listen.return_value = True
             window.isVisible.return_value = False
             window.winId.return_value = 123
+            window._quick_input = None
             shortcut.label = "fixture hotkey"
             app.exec.return_value = 0
             with self.subTest(view=view), patch.dict(os.environ, {

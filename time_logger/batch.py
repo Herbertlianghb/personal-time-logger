@@ -65,13 +65,16 @@ def _classification_options(config):
     return tuple(options)
 
 
-def export_batch(store, config) -> dict:
+def export_batch(store, config, *, observation_ids=None) -> dict:
     if not config.get("parse", False):
         return {"status": "disabled", "batch_id": None, "processed": 0}
     categories, projects = _classification_options(config)
     _ensure_schema(store)
     with store.transaction() as db:
-        existing = db.execute("SELECT * FROM interpretation_batches WHERE status='exported' ORDER BY created_at_ms LIMIT 1").fetchone()
+        existing_rows = db.execute("SELECT * FROM interpretation_batches WHERE status='exported' ORDER BY created_at_ms").fetchall()
+        allowed = None if observation_ids is None else frozenset(observation_ids)
+        existing = next((row for row in existing_rows if allowed is None or
+                         set(json.loads(row["bundle"])["new_evidence_ids"]).issubset(allowed)), None)
         if existing:
             bundle = json.loads(existing["bundle"])
             observed = store.evidence(bundle["evidence_ids"])
@@ -89,9 +92,14 @@ def export_batch(store, config) -> dict:
                 return bundle
             _invalidate(store, bundle["batch_id"], "snapshot_changed_before_export")
         now = now_ms()
-        rows = db.execute("""SELECT * FROM jobs WHERE job_type='interpret' AND
+        query = """SELECT * FROM jobs WHERE job_type='interpret' AND
           ((status IN ('pending','retry') AND next_at_ms<=?) OR
-           (status='inflight' AND lease_until_ms<=?)) ORDER BY next_at_ms,job_id LIMIT 300""", (now, now)).fetchall()
+           (status='inflight' AND lease_until_ms<=?))"""
+        parameters = [now, now]
+        if allowed is not None:
+            query += " AND json_extract(payload,'$.observation_id') IN (" + ",".join("?" for _ in allowed) + ")"
+            parameters.extend(allowed)
+        rows = db.execute(query + " ORDER BY next_at_ms,job_id LIMIT 300", parameters).fetchall()
         selected, source_ids, batch_is_test = [], [], None
         deferred = db.execute("SELECT count(*) FROM jobs WHERE job_type='attachment' AND status IN ('pending','retry','inflight','conflict')").fetchone()[0]
         for row in rows:
@@ -99,6 +107,8 @@ def export_batch(store, config) -> dict:
                 break
             payload = json.loads(row["payload"])
             oid = payload.get("observation_id")
+            if allowed is not None and oid not in allowed:
+                continue
             source = db.execute("""SELECT o.*,m.current_observation_id,m.message_type,m.message_created_at_ms,
               EXISTS(SELECT 1 FROM acceptance_tests t WHERE t.app_scope=m.app_scope AND t.message_id=m.message_id) AS is_acceptance_test
               FROM observations o JOIN messages m USING(message_key) WHERE o.observation_id=?""", (oid,)).fetchone()
@@ -212,7 +222,7 @@ def _invalidate(store, batch_id, reason, status="stale"):
                        (now_ms(), reason, job_id))
 
 
-def import_proposal(store, batch_id, proposal, metadata, accept=True) -> dict:
+def import_proposal(store, batch_id, proposal, metadata, accept=True, *, enqueue_base_sync=True) -> dict:
     _ensure_schema(store)
     try:
         schema = _strict_json((Path(__file__).resolve().parent.parent / "config/model-proposal.schema.json").read_text(encoding="utf-8"))
@@ -272,7 +282,7 @@ def import_proposal(store, batch_id, proposal, metadata, accept=True) -> dict:
             if digest(json.loads(persisted[0])) != body_hash:
                 raise BatchConflict("saved_proposal_differs_from_import")
             question_count = db.execute("SELECT count(*) FROM questions").fetchone()[0]
-            changed = store.accept_proposal(pid) if accept else []
+            changed = store.accept_proposal(pid, enqueue_base_sync=enqueue_base_sync) if accept else []
             if accept:
                 for answer in answers:
                     if not store.resolve_question(answer["question_id"], answer["answer_evidence_id"], skipped=answer["disposition"] == "skipped"):

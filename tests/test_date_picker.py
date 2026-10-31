@@ -4,7 +4,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 import unittest
 from unittest.mock import patch
 
-from PySide6.QtCore import QDate, Qt, QPoint
+from PySide6.QtCore import QDate, Qt, QPoint, QEvent
 from PySide6.QtGui import QColor, QImage, QPainter, QPalette
 from PySide6.QtTest import QSignalSpy, QTest
 from PySide6.QtWidgets import QApplication, QTableView, QLabel
@@ -29,6 +29,7 @@ class DatePickerTests(unittest.TestCase):
     def tearDown(self):
         self.edit.close()
         self.edit.deleteLater()
+        APP.sendPostedEvents(None, QEvent.Type.DeferredDelete)
         APP.processEvents()
 
     def test_dual_column_heading_and_quiet_weekdays_follow_selected_design(self):

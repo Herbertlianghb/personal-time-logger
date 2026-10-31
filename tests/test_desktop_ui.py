@@ -505,6 +505,20 @@ class WindowTests(unittest.TestCase):
         self.assertNotIn("约约", duration_row.text(1))
         dialog.deleteLater()
 
+    def test_manual_cross_day_estimate_is_reachable_without_an_exact_node(self):
+        item = {"id": "manual-cross-day", "name": "跨日学习估算", "formal_state": "manual_organized",
+                "estimated": True, "start_ms": LEFT - 3600000, "end_ms": None,
+                "original_start_ms": LEFT - 3600000, "original_end_ms": LEFT + 3600000,
+                "report_ms": LEFT - 1800000, "recorded_intervals": [], "human_intervals": [],
+                "ai_intervals": [], "role": "primary", "actor": "human"}
+        self.window.date_edit.setDate(QDate(2026, 10, 26))
+        self.window.receive_snapshot({"date": "2026-10-26", "mode": "desktop_organized",
+                                      "day_start_ms": LEFT, "day_end_ms": LEFT + 86400000,
+                                      "activities": [item], "summary": {}})
+        self.assertEqual(self.window.unlocated.count(), 1)
+        self.assertIn("跨日学习估算", self.window.unlocated.item(0).text())
+        self.assertEqual(self.window.timeline.anchors, [])
+
     def test_question_answer_and_skip_share_stable_id(self):
         self.window.receive_questions([{"question_id": "stable", "text": "何时结束？"}])
         self.window._answer_question()
@@ -543,6 +557,26 @@ class WindowTests(unittest.TestCase):
         self.window.editor.setPlainText("更正")
         self.window.submit()
         self.assertEqual(self.controller.calls[0], ("更正", {"record_id": "stable", "expected_fingerprint": "fingerprint"}))
+
+
+    def test_raw_history_is_labeled_without_feishu_or_inferred_hours(self):
+        value = self._scrollable_history()
+        value.update(mode="desktop_only", as_of_ms=LEFT, cache={"state": "fresh"})
+        value["summary"] = {"raw_record_count": 2, "human_seconds": None}
+        self.window.receive_snapshot(value)
+        self.assertIn("已保存原文 2 条", self.window.summary_label.text())
+        self.assertIn("未推算", self.window.summary_label.text())
+        self.assertIn("服务器原文", self.window.sync_label.text())
+        self.assertEqual(self.window.connection_label.text(), "已连接记录")
+
+    def test_raw_record_details_do_not_offer_formal_correction(self):
+        dialog = ActivityDialog([{"id": "raw:test", "name": "原文", "source": "desktop_raw", "editable": False}])
+        self.addCleanup(dialog.close)
+        corrections = []
+        dialog.correction_requested.connect(corrections.append)
+        self.assertFalse(dialog.correct.isEnabled())
+        dialog._correct()
+        self.assertEqual(corrections, [])
 
 
 if __name__ == "__main__":

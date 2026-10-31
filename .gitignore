@@ -21,6 +21,7 @@
 !/tests/controlled-corpus.json
 /config/*
 !/config/config.example.json
+!/config/desktop-only.example.json
 !/config/client.example.json
 !/config/device.example.json
 !/config/ssh-config.example
@@ -30,11 +31,14 @@
 /docs/*
 !/docs/SETUP.md
 !/docs/SERVER.md
+!/docs/DESKTOP-ONLY.md
 !/docs/CONFIGURATION.md
 !/docs/AGENT-SETUP.md
 !/docs/AGENT-PROMPTS.md
 !/docs/DISTRIBUTION.md
 !/docs/RELEASE-1.4.7.md
+!/docs/RELEASE-1.4.15.md
+!/docs/MANUAL-ORGANIZATION.md
 /deploy/*
 !/deploy/build-desktop.ps1
 !/deploy/package-desktop.py

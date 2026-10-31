@@ -2,6 +2,8 @@
 
 所有 example 文件都是占位模板，不能直接用于真实账户。配置文件不属于源码；放在自己选择的受限目录。本机与服务端只使用自己的身份，不复制维护者部署。修改运行配置后需要按对应组件启动/重启才生效。
 
+不接飞书的独立实例使用 `config/desktop-only.example.json`，配置和设备入口见 [DESKTOP-ONLY.md](DESKTOP-ONLY.md)。`manual_organization` 是该模式专用的布尔选项；显式 true 时允许设备发起按需批次交换，未配置时 false。它不会启动模型、开启 `parse` 或写入 Base。以下服务端字段表描述飞书模式。
+
 ## 服务端 config.json
 
 模板：`config/config.example.json`。JSON 不支持注释。秘密为 `app_secret`；其他身份标识虽然不是登录秘密，也不应附带个人业务结构公开。
@@ -19,11 +21,16 @@
 | `accept_model_proposals` | 验证后是否接受候选；true 不等于绕过证据/revision检查 |
 | `base_sync` | 正式 Base 写入开关；首次 false |
 | `base_token` / `time_table_id` | 自己的 Base 和时间表，首次可 null；启用 Base/正式历史能力前必填 |
+| `time_standards_table_id` | 同一 Base 的每日工作/学习标准表；配置后小窗只读飞书目标，不使用本地目标 |
 | `notion_sync` | 外部复盘门禁，首次 false；不是内置 Notion 连接器 |
 | `categories` / `projects` | 自己已确认的分类和项目候选；空项目列表允许，不自动创建选项 |
 | `history_interval_seconds` | 授权聊天历史补查间隔，模板3600秒；不保证平台历史绝对完整 |
 
 程序以 UTC+8 解释自然日；系统睡前到醒来的活动周期不等于自然日，不能混算。`history_start_ms` 若不设置，首次服务初始化时刻作为补查起点；不承诺发现绑定前的全部历史。
+
+每日标准表字段为 `时段`（text）、`开始时间` / `结束时间`（datetime）、`工作时间标准（h）` / `学习时间标准（h）`（number）。按 UTC+8 自然日匹配，起止日期均包含；同一天应仅有一条生效标准，重叠时不擅自选择。目标须为 0–24 小时，空值或 0 表示未设置。修改标准时分开历史与新时段，避免覆盖过去目标。服务端只读该表，目标读取也有一分钟缓存；失败保留标明过期的已读值，不填默认小时数。小窗保留原有界面设置但忽略旧 `goals/*_hours` 值。
+
+飞书日度表的行时长汇总和小窗的区间并集仍各有原有计算方式；统一目标不代表有重叠记录时两者数值自动相等，记录区间也不等于净人工投入。
 
 ## 桌面 device.json
 

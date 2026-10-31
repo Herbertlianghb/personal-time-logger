@@ -5,12 +5,12 @@ from datetime import datetime, timezone, timedelta
 import os
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QDate, QEvent, QSettings, QTimer, Signal, QPointF, QRectF
-from PySide6.QtGui import QFont, QFontDatabase, QIcon, QInputMethodEvent, QPainter, QColor, QPalette, QPen, QPixmap, QAction
+from PySide6.QtCore import Qt, QDate, QEvent, QSettings, QTimer, Signal, QPointF, QRectF, QUrl
+from PySide6.QtGui import QFont, QFontDatabase, QIcon, QInputMethodEvent, QPainter, QColor, QPalette, QPen, QPixmap, QAction, QDesktopServices
 from PySide6.QtWidgets import (
     QApplication, QCheckBox, QComboBox, QDialog, QDialogButtonBox,
     QFrame, QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QMainWindow,
-    QMenu, QMessageBox, QPlainTextEdit, QPushButton, QScrollArea, QSizePolicy,
+    QMenu, QMessageBox, QPlainTextEdit, QProgressBar, QPushButton, QScrollArea, QSizePolicy,
     QSlider, QSystemTrayIcon, QToolButton, QTreeWidget, QTreeWidgetItem,
     QVBoxLayout, QWidget,
 )
@@ -190,9 +190,9 @@ class ActivityDialog(QDialog):
         self.details.setRootIsDecorated(True)
         layout.addWidget(self.details, 1)
         foot = QHBoxLayout()
-        correct = QPushButton("补充 / 更正这项")
-        correct.clicked.connect(self._correct)
-        foot.addWidget(correct)
+        self.correct = QPushButton("补充 / 更正这项")
+        self.correct.clicked.connect(self._correct)
+        foot.addWidget(self.correct)
         foot.addStretch()
         close = QPushButton("关闭")
         close.clicked.connect(self.accept)
@@ -203,6 +203,8 @@ class ActivityDialog(QDialog):
 
     def _show_item(self, index):
         item = self.items[index]
+        self.correct.setEnabled(item.get("editable") is not False)
+        self.correct.setToolTip("原文保留不覆盖；补充内容请另写一条记录。" if item.get("editable") is False else "")
         self.title.setText(item.get("name", "活动"))
         self.details.clear()
         def row(name, text):
@@ -224,9 +226,9 @@ class ActivityDialog(QDialog):
                     source.child(source.childCount() - 1).addChild(QTreeWidgetItem(["来源", str(ref["id"])]))
         if item.get("original_start_ms") is not None or item.get("original_end_ms") is not None:
             if item.get("estimated"):
-                row("原表估计边界", f"{clock(item.get('original_start_ms'), True)} → {clock(item.get('original_end_ms'), True)}（非精确实际起止）")
+                row("整理估计边界" if item.get("formal_state") == "manual_organized" else "原表估计边界", f"{clock(item.get('original_start_ms'), True)} → {clock(item.get('original_end_ms'), True)}（非精确实际起止）")
             else:
-                row("正式表区间边界", f"{clock(item.get('original_start_ms'), True)} → {clock(item.get('original_end_ms'), True)}；记录区间不等同于有效人工")
+                row("整理区间边界" if item.get("formal_state") == "manual_organized" else "正式表区间边界", f"{clock(item.get('original_start_ms'), True)} → {clock(item.get('original_end_ms'), True)}；记录区间不等同于有效人工")
         kind = {"recorded_window": "记录区间", "human_effort": "明确人工区间", "ai": "AI后台区间"}.get(item.get("duration_kind"), "有据区间")
         row(kind, duration(item.get("duration_seconds")))
         if item.get("reported_duration_seconds") is not None:
@@ -247,7 +249,8 @@ class ActivityDialog(QDialog):
                 else:
                     actor = {"human": "本人", "ai": "AI后台"}.get(sub.get("actor"), "")
                     parent.addChild(QTreeWidgetItem([str(sub.get("name", "子任务")), actor]))
-        source = row("来源与修订", str(item.get("source") or "飞书正式时间表"))
+        source_name = "服务器保存的桌面原文" if item.get("source") == "desktop_raw" else str(item.get("source") or "飞书正式时间表")
+        source = row("来源与修订", source_name)
         for record_id in item.get("record_ids") or []:
             source.addChild(QTreeWidgetItem(["正式记录", str(record_id)]))
         for ref in item.get("source_refs") or []:
@@ -257,6 +260,8 @@ class ActivityDialog(QDialog):
         self.details.expandToDepth(0)
 
     def _correct(self):
+        if self.items[self.choose.currentIndex()].get("editable") is False:
+            return
         self.correction_requested.emit(self.items[self.choose.currentIndex()])
         self.accept()
 
@@ -264,6 +269,7 @@ class ActivityDialog(QDialog):
 class DesktopWindow(QMainWindow):
     """Recording panel; background refreshes never activate or raise it."""
     quit_requested = Signal()
+    context_changed = Signal()
 
     def __init__(self, controller, *, settings=None, create_tray=True):
         super().__init__()
@@ -272,6 +278,7 @@ class DesktopWindow(QMainWindow):
         self.controller = controller
         self.settings = settings or QSettings("PersonalTimeLogger", "Desktop")
         self.floating_panel = None
+        self._quick_input = None
         self._snapshot = {}
         self._expanded = False
         self._closing = False
@@ -284,6 +291,8 @@ class DesktopWindow(QMainWindow):
         self._draft_loading = True
         self._sync_busy = False
         self._overview_mode = True
+        self._daily_progress = {}
+        self._daily_progress_status = "正在读取"
         self.setWindowTitle("个人时间记录 · 随手记")
         self.setWindowIcon(application_icon())
         self.setMinimumSize(380, 265)
@@ -332,6 +341,8 @@ class DesktopWindow(QMainWindow):
             self.quit_requested.connect(self.floating_panel.dispose)
             QApplication.instance().aboutToQuit.connect(self.floating_panel.dispose)
             QTimer.singleShot(0, self.floating_panel.start)
+        if create_tray and self.settings.value("quick_input/open", False, type=bool):
+            QTimer.singleShot(0, lambda: self.show_quick_input(focus=False))
 
     def _build(self):
         central = QFrame()
@@ -363,7 +374,9 @@ class DesktopWindow(QMainWindow):
         menu_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         menu = QMenu(menu_button)
         menu.addAction("刷新历史", self.refresh)
+        menu.addAction("输入小窗", lambda: self.show_quick_input())
         menu.addAction("月度热力图", self.show_heatmap)
+        menu.addAction("每日目标（飞书）…", self.edit_daily_goals)
         self.retry_action = menu.addAction("立即重试同步", self._retry_sync)
         menu.addAction("查看昨日", lambda: self._choose_relative_date(-1))
         self.pin = QCheckBox("置顶", self)
@@ -390,11 +403,39 @@ class DesktopWindow(QMainWindow):
         menu_button.setMenu(menu)
         header.addWidget(menu_button)
         outer.addLayout(header)
+        self.goal_rows = {}
+        self.goals = QWidget()
+        goals_layout = QVBoxLayout(self.goals)
+        goals_layout.setContentsMargins(18, 0, 18, 5)
+        goals_layout.setSpacing(4)
+        for category, key in (("工作", "work"), ("学习", "study")):
+            row = QHBoxLayout()
+            row.setSpacing(7)
+            label = QLabel(category)
+            label.setStyleSheet("font-size: 12px;")
+            row.addWidget(label)
+            bar = QProgressBar()
+            bar.setRange(0, 1000)
+            bar.setFixedHeight(18)
+            bar.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
+            bar.setAccessibleName("今日" + category + "时长进度")
+            row.addWidget(bar, 1)
+            status = QLabel()
+            status.setFixedWidth(70)
+            row.addWidget(status)
+            self.goal_rows[key] = (bar, status, category)
+            goals_layout.addLayout(row)
+        outer.addWidget(self.goals)
+        self.goal_timer = QTimer(self)
+        self.goal_timer.setInterval(30000)
+        self.goal_timer.timeout.connect(self._render_daily_progress)
+        self.goal_timer.start()
+        self._render_daily_progress()
         self.compact_summary = QLabel("正在读取最近记录…")
         self.compact_summary.setObjectName("summary")
         self.compact_summary.setContentsMargins(18, 0, 18, 8)
-        self.compact_summary.setWordWrap(True)
-        self.compact_summary.setMaximumHeight(58)
+        self.compact_summary.setWordWrap(False)
+        self.compact_summary.setMaximumHeight(26)
         self.compact_summary.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         outer.addWidget(self.compact_summary)
         self.question_prompt = QPushButton("有待确认信息 · 查看")
@@ -450,6 +491,7 @@ class DesktopWindow(QMainWindow):
         hist.addWidget(self.sync_label)
         self.cluster_button = QPushButton("")
         self.cluster_button.setObjectName("cluster")
+        self.cluster_button.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
         self.cluster_button.clicked.connect(self._zoom_cluster)
         cluster_row = QHBoxLayout()
         cluster_row.setContentsMargins(18, 0, 18, 7)
@@ -619,7 +661,7 @@ class DesktopWindow(QMainWindow):
         footer.addWidget(self.retry_button)
         self.record_button = QPushButton("记录")
         self.record_button.setObjectName("record")
-        self.record_button.clicked.connect(self.submit)
+        self.record_button.clicked.connect(lambda: self.submit())
         footer.addWidget(self.record_button)
         composer_layout.addLayout(footer)
         outer.addWidget(self.composer)
@@ -758,6 +800,7 @@ class DesktopWindow(QMainWindow):
         menu = QMenu()
         show = menu.addAction("展开随手记")
         show.triggered.connect(self.show_and_focus)
+        menu.addAction("输入小窗", lambda: self.show_quick_input())
         menu.addAction("展开今日时间线", self._show_today)
         menu.addSeparator()
         menu.addAction(self.floating_action)
@@ -768,12 +811,107 @@ class DesktopWindow(QMainWindow):
         self.tray.activated.connect(lambda reason: self.toggle_window() if reason in (QSystemTrayIcon.ActivationReason.Trigger, QSystemTrayIcon.ActivationReason.DoubleClick) else None)
         self.tray.show()
 
+    def show_quick_input(self, *, focus=True):
+        if self._quick_input is None:
+            from .quick_input import QuickInputWindow
+            self._quick_input = QuickInputWindow(self)
+        self._quick_input.show_input(focus=focus)
+
     def _connect_controller(self):
         self.controller.snapshot.connect(self.receive_snapshot)
         self.controller.state.connect(self._receive_state)
         self.controller.pending.connect(self.receive_pending)
         self.controller.questions.connect(self.receive_questions)
         self.controller.sync_busy.connect(self._set_sync_busy)
+        if hasattr(self.controller, "daily_progress"):
+            self.controller.daily_progress.connect(self.receive_daily_progress)
+            self.controller.daily_progress_state.connect(self._receive_daily_progress_state)
+
+    def edit_daily_goals(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("每日目标 · 飞书")
+        layout = QVBoxLayout(dialog)
+        goals = self._daily_progress.get("daily_goals", {})
+        for key, category in (("work", "工作"), ("study", "学习")):
+            hours = goals.get(key + "_hours")
+            text = duration(hours * 3600) + " / 天" if type(hours) in (int, float) and 0 < hours <= 24 else "尚未读取或设置"
+            layout.addWidget(QLabel(category + "：" + text))
+        if goals.get("valid_from") and goals.get("valid_until"):
+            layout.addWidget(QLabel(f"生效：{goals['valid_from']} — {goals['valid_until']}"))
+        note = QLabel("目标统一保存在飞书。修改后，展开小窗会自动读取；离线时显示缓存并提示待刷新。")
+        note.setWordWrap(True)
+        layout.addWidget(note)
+        settings_url = goals.get("settings_url", "")
+        if settings_url.startswith("https://"):
+            open_settings = QPushButton("在飞书修改目标")
+            open_settings.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(settings_url)))
+            layout.addWidget(open_settings)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+        dialog.exec()
+
+    def receive_daily_progress(self, snapshot):
+        self._daily_progress = snapshot
+        self._render_daily_progress()
+
+    def _receive_daily_progress_state(self, text):
+        self._daily_progress_status = text
+        self._render_daily_progress()
+
+    def _render_daily_progress(self):
+        today = datetime.now(TAIPEI).date().isoformat()
+        snapshot = self._daily_progress
+        day = next((item for item in snapshot.get("days", []) if item.get("date") == today), {})
+        cache = snapshot.get("cache", {})
+        as_of = snapshot.get("as_of_ms")
+        goals = snapshot.get("daily_goals", {})
+        goal_cache = goals.get("cache", {})
+        goal_available = (goals.get("source") == "feishu" and goals.get("date") == today
+                          and goal_cache.get("state") in {"fresh", "cached", "stale"})
+        stale = bool(self._daily_progress_status or cache.get("stale") or cache.get("local_cached")
+                     or cache.get("state") == "stale" or snapshot.get("error")
+                     or goal_cache.get("state") == "stale" or not goal_available)
+        if as_of:
+            stale = stale or datetime.now(TAIPEI).timestamp() * 1000 - as_of > 120000
+        if goals.get("as_of_ms"):
+            stale = stale or datetime.now(TAIPEI).timestamp() * 1000 - goals["as_of_ms"] > 120000
+        for key, (bar, status, category) in self.goal_rows.items():
+            hours = goals.get(key + "_hours") if goal_available else None
+            goal = hours * 3600 if type(hours) in (int, float) and 0 < hours <= 24 else 0
+            metrics = day.get("categories", {}).get(category, {})
+            total = metrics.get("recorded_seconds")
+            known = type(total) in (int, float) and 0 <= total <= 86400
+            approximate = bool(metrics.get("estimated_seconds"))
+            achieved = known and goal > 0 and total >= goal
+            green = achieved and not stale
+            color = COLORS["primary"] if green else "#8B9298"
+            bar.setValue(min(1000, int(total / goal * 1000)) if known and goal > 0 else 0)
+            actual = ("约 " if approximate else "") + duration(total) if known else "暂无时长"
+            target = duration(goal) if goal > 0 else "未设目标" if goal_available else "目标未读取"
+            bar.setFormat(actual + " / " + target)
+            bar.setStyleSheet(
+                "QProgressBar { border: 0; border-radius: 4px; background: #EEF1EF; color: #26352E; "
+                "text-align: center; font-size: 11px; } "
+                "QProgressBar::chunk { border-radius: 4px; background: " + ("#A8D7B6" if green else "#D2DDD7") + "; }")
+            state = "待读取" if not goal_available else "未设置" if goal <= 0 else "待刷新" if stale else "待记录" if not known else "达标" if achieved else "未达标"
+            status.setText("● " + state)
+            status.setStyleSheet("font-size: 12px; color: " + color + ";")
+            tooltip = (f"今日 {today} · {category}已记录时长 / 每日目标\n"
+                       "按 UTC+8 自然日；分类内重叠去重，缺少起止不补算，明确 AI 后台执行排除。\n"
+                       "沿用热力图的确定与估算区间口径，不等于净人工投入；工作与学习不相加。\n"
+                       "目标来自飞书；在“··· → 每日目标（飞书）”查看与修改入口。")
+            if goals.get("valid_from") and goals.get("valid_until"):
+                tooltip += f"\n目标有效期 {goals['valid_from']} — {goals['valid_until']}"
+            if as_of:
+                tooltip += "\n数据截至 " + clock(as_of, True)
+            if approximate:
+                tooltip += "\n含估算 " + duration(metrics["estimated_seconds"])
+            if stale:
+                tooltip += "\n" + (self._daily_progress_status or "缓存待刷新")
+            bar.setToolTip(tooltip)
+            status.setToolTip(tooltip)
+            bar.setAccessibleDescription(f"今日{category}：{actual}，目标{target}，{state}")
 
     def show_heatmap(self):
         if not hasattr(self.controller, "request_heatmap"):
@@ -828,7 +966,8 @@ class DesktopWindow(QMainWindow):
             self.draft_timer.start()
 
     def _update_submit_enabled(self):
-        self.record_button.setEnabled(bool(self.editor.toPlainText().strip()) and not self.editor.composing)
+        composing = self.editor.composing or (self._quick_input is not None and self._quick_input.editor.composing)
+        self.record_button.setEnabled(bool(self.editor.toPlainText().strip()) and not composing)
 
     def _save_draft(self):
         self.draft_timer.stop()
@@ -843,12 +982,12 @@ class DesktopWindow(QMainWindow):
             return False
         return True
 
-    def submit(self):
-        if self.editor.composing:
-            return
+    def submit(self, *, focus_editor=True):
+        if self.editor.composing or (self._quick_input is not None and self._quick_input.editor.composing):
+            return False
         text = self.editor.toPlainText().strip()
         if not text:
-            return
+            return False
         context = self._context or {}
         kwargs = {}
         if context.get("activity_id"):
@@ -863,7 +1002,7 @@ class DesktopWindow(QMainWindow):
                 raise OSError("submission_not_persisted")
         except Exception:
             self.save_state.setText("尚未存下，内容仍在输入框；可稍后重试")
-            return
+            return False
         self.draft_timer.stop()
         self._draft_loading = True
         self.editor.clear()
@@ -875,7 +1014,9 @@ class DesktopWindow(QMainWindow):
             pass
         self.clear_context()
         self._update_submit_enabled()
-        self.editor.setFocus()
+        if focus_editor:
+            self.editor.setFocus()
+        return True
 
     def receive_snapshot(self, snapshot):
         if snapshot.get("date") and snapshot["date"] != self.selected_date():
@@ -907,29 +1048,47 @@ class DesktopWindow(QMainWindow):
             extra.append(f"已记录区间 {duration(summary['recorded_seconds'])}")
         if summary.get("scalar_seconds") is not None:
             extra.append(f"估算/标量 {duration(summary['scalar_seconds'])}（单列，不加人工）")
+        if summary.get("estimated_window_seconds"):
+            extra.append(f"估算区间 {duration(summary['estimated_window_seconds'])}（单列，不加人工）")
         self.summary_label.setText(" · ".join(parts) + ("\n" + " · ".join(extra) if extra else ""))
         compact = f"已确认人工 {duration(human)}"
         items = snapshot.get("activities", snapshot.get("items", []))
+        raw_only = snapshot.get("mode") == "desktop_only"
+        if raw_only:
+            compact = f"已保存原文 {summary.get('raw_record_count', len(items))} 条"
+            self.summary_label.setText(compact + " · 未推算活动起止、时长或分类")
+            self.axis_note.setText("节点表示报告时刻；原文中的活动起止尚未整理，不计作工时。")
+        elif snapshot.get("mode") == "desktop_organized":
+            self.axis_note.setText("Codex 按需整理；起止未知保留缺口，记录区间不等于净人工投入。")
         if items:
             latest = max(items, key=lambda a: a.get("report_ms") or a.get("start_ms") or 0)
             compact += f" · 最近：{latest.get('name', '活动')}"
-        elif human is None:
+        elif human is None and not raw_only:
             compact = "当天无可用记录；不能据此判定投入为零"
         server_now = snapshot.get("server_now_ms")
         today = datetime.fromtimestamp(server_now / 1000, TAIPEI).date().isoformat() if server_now else datetime.now(TAIPEI).date().isoformat()
         if snapshot.get("date") and snapshot["date"] != today:
             compact = f"回看 {snapshot['date']} · " + compact
         self.compact_summary.setText(compact)
+        self.compact_summary.setToolTip(compact)
         cache = snapshot.get("cache", {})
         as_of = snapshot.get("as_of_ms") or cache.get("as_of_ms")
         state = cache.get("state", "fresh")
         prefix = "缓存" if state not in ("fresh", "live", "updated") or cache.get("stale") or cache.get("local_cached") else "正式历史"
+        if raw_only and prefix == "正式历史":
+            prefix = "服务器原文"
+        elif snapshot.get("mode") == "desktop_organized" and prefix == "正式历史":
+            prefix = "按需整理"
         self.sync_label.setText(f"{prefix}截至 {clock(as_of, True)} · {clock(self.timeline.scale.start_ms)}—{clock(self.timeline.scale.end_ms)}" + (" · 同步受阻" if cache.get("refresh_error") else ""))
-        self.connection_label.setText("已连接记录" if prefix == "正式历史" else "查看缓存")
+        self.connection_label.setText("已连接记录" if prefix in ("正式历史", "服务器原文", "按需整理") else "查看缓存")
         self.unlocated.clear()
         unlocated = [a for a in items if a.get("start_ms") is None and a.get("end_ms") is None and a.get("report_ms") is None]
+        if snapshot.get("mode") == "desktop_organized":
+            reachable = {node["item"].get("id") for node in self.timeline.anchors + self.timeline.bars}
+            unlocated.extend(a for a in items if a.get("formal_state") == "manual_organized"
+                             and a.get("id") not in reachable and a not in unlocated)
         for item in unlocated:
-            extra = "起止未知"
+            extra = "估算区间，暂无当日精确节点" if item.get("formal_state") == "manual_organized" and item.get("estimated") else "起止未知"
             if item.get("reported_duration_seconds") is not None:
                 extra += " · " + reported_duration(item) + "（单列）"
             row = QListWidgetItem(f"{item.get('name', '活动')} · {extra}")
@@ -989,6 +1148,7 @@ class DesktopWindow(QMainWindow):
             self._context = {"question_id": self._question_id()}
             self.context_label.setText("正在回答：" + self.question_label.text())
             self.context_frame.show()
+            self.context_changed.emit()
             self.editor.setFocus()
 
     def _skip_question(self):
@@ -1014,6 +1174,7 @@ class DesktopWindow(QMainWindow):
     def clear_context(self):
         self._context = None
         self.context_frame.hide()
+        self.context_changed.emit()
 
     def _correct_activity(self, item):
         if item.get("activity_id"):
@@ -1026,6 +1187,7 @@ class DesktopWindow(QMainWindow):
             return
         self.context_label.setText("补充 / 更正：" + item.get("name", "活动"))
         self.context_frame.show()
+        self.context_changed.emit()
         self.editor.setFocus()
 
     def show_activities(self, items):
@@ -1109,6 +1271,9 @@ class DesktopWindow(QMainWindow):
 
     def _apply_topmost(self):
         floating = self.floating_panel is not None and self.floating_panel.enabled
+        if not floating:
+            self.setMaximumSize(16777215, 16777215)
+            self.setMinimumSize(380, 540 if self._expanded else 265)
         flags = ((Qt.WindowType.Tool | Qt.WindowType.FramelessWindowHint
                   | Qt.WindowType.WindowStaysOnTopHint) if floating else self._normal_window_flags)
         if self.pin.isChecked():
@@ -1193,6 +1358,8 @@ class DesktopWindow(QMainWindow):
 
     def closeEvent(self, event):
         if self._closing:
+            if self._quick_input is not None:
+                self._quick_input.shutdown()
             event.accept()
         else:
             event.ignore()

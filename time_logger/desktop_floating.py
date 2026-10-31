@@ -210,6 +210,14 @@ class FloatingPanel(QObject):
         if not screen:
             return
         area, entry = screen.availableGeometry(), self.entry.frameGeometry()
+        # Floating mode has its own compact bounds. A previously saved normal
+        # window geometry or a long content size hint must not enlarge it.
+        width = min(460, max(1, area.width() - self.entry.width()))
+        height = min(640 if self.window._expanded else 300, max(1, area.height() - 32))
+        self.window.setMinimumSize(min(380, width), min(540 if self.window._expanded else 265, height))
+        self.window.setMaximumSize(width, height)
+        if self.window.width() != width or self.window.height() != height:
+            self.window.resize(width, height)
         frame = self.window.frameGeometry()
         x = entry.right() + 1 if entry.center().x() <= area.center().x() else entry.left() - frame.width()
         x = max(area.left(), min(x, area.right() - frame.width() + 1))

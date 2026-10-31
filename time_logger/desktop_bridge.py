@@ -89,6 +89,12 @@ class DesktopBridge:
             from .desktop_mirror import ensure_schema
             ensure_schema(store)
 
+    def owner_identity(self):
+        return self.config["owner_open_id"]
+
+    def ingest(self, message):
+        return self.store.ingest(message)
+
     def _authorize(self, request):
         if not isinstance(request, dict) or type(request.get("version")) is not int or request.get("version") != 1:
             raise BridgeError("protocol_version")
@@ -175,10 +181,10 @@ class DesktopBridge:
                 return {"submission": self._submission(dict(old)), "duplicate": True}
             received = now_ms()
             context = self._context(request, reported, received)
-            result = self.store.ingest({"app_scope": self.store.scope,
+            result = self.ingest({"app_scope": self.store.scope,
                 "message_id": "desktop:" + self.device_id + ":" + sid,
                 "chat_id": self.config.get("chat_id") or self.store.get_setting("bound_chat_id") or "desktop-owner",
-                "sender_key": self.config["owner_open_id"], "sender_type": "user", "message_type": "text",
+                "sender_key": self.owner_identity(), "sender_type": "user", "message_type": "text",
                 "created_at_ms": reported, "received_at_ms": received, "content": text,
                 "source": "desktop", "kind": "receive", "event_id": sid})
             oid = result["observation_id"]

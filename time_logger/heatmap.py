@@ -260,9 +260,21 @@ class HeatmapReader:
 
 def monthly_heatmap(store, config, month, *, refresh=False, scope="month"):
     from .feishu import Feishu
+    from .daily_goals import DailyGoalReader
     base = config.get("base_token")
     table = config.get("time_table_id") or config.get("table_id")
     if not isinstance(base, str) or not base or not isinstance(table, str) or not table:
         raise ValueError("desktop_formal_source_not_configured")
-    transport = HttpBaseTransport(Feishu(config["app_id"], config["app_secret"]), base, table)
-    return HeatmapReader(store, transport).month(month, refresh=refresh, scope=scope)
+    platform = Feishu(config["app_id"], config["app_secret"])
+    transport = HttpBaseTransport(platform, base, table)
+    result = HeatmapReader(store, transport).month(month, refresh=refresh, scope=scope)
+    today = datetime.fromtimestamp(result["server_now_ms"] / 1000, LOCAL_TZ).date().isoformat()
+    standards = config.get("time_standards_table_id")
+    if standards:
+        goals_transport = HttpBaseTransport(platform, base, standards)
+        result["daily_goals"] = DailyGoalReader(store, goals_transport,
+            settings_url=f"https://my.feishu.cn/base/{base}?table={standards}").read(today)
+    else:
+        result["daily_goals"] = {"date": today, "source": "feishu", "work_hours": None,
+            "study_hours": None, "cache": {"state": "unavailable", "refresh_error": "not_configured"}}
+    return result

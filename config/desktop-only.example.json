@@ -1,0 +1,12 @@
+{
+  "mode": "desktop_only",
+  "owner_id": "desktop-owner-01",
+  "database": "/home/time-logger/desktop-only/owner-01/data/evidence.sqlite3",
+  "desktop_enabled": true,
+  "ingest": true,
+  "manual_organization": true,
+  "parse": false,
+  "base_sync": false,
+  "notion_sync": false,
+  "desktop_chat_mirror": false
+}
