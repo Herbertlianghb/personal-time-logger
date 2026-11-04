@@ -98,9 +98,10 @@ class LocalState:
         with self.lock, self.db:
             self.db.execute("UPDATE submissions SET error=?,stage=CASE WHEN ? THEN 'local_needs_review' ELSE stage END WHERE id=?", (category, permanent, sid))
 
-    def cache(self, day):
+    def cache(self, day, day_start_hour=0):
+        key = day + (":start:" + str(day_start_hour) if day_start_hour else "")
         with self.lock:
-            row = self.db.execute("SELECT body FROM history WHERE day=?", (day,)).fetchone()
+            row = self.db.execute("SELECT body FROM history WHERE day=?", (key,)).fetchone()
             return json.loads(row[0]) if row else None
 
     def save_history(self, snapshot):
@@ -108,9 +109,11 @@ class LocalState:
             raise ValueError("incomplete_history_response")
         if snapshot.get("cache", {}).get("stale") or snapshot.get("cache", {}).get("state") == "stale" or snapshot.get("error"):
             return False  # failed remote read cannot erase the last good version
+        hour = snapshot.get("day_start_hour", 0)
+        key = snapshot["date"] + (":start:" + str(hour) if hour else "")
         with self.lock, self.db:
-            old = self.db.execute("SELECT body FROM history WHERE day=?", (snapshot["date"],)).fetchone()
+            old = self.db.execute("SELECT body FROM history WHERE day=?", (key,)).fetchone()
             if old and json.loads(old[0]).get("as_of_ms", 0) > snapshot["as_of_ms"]:
                 return False
-            self.db.execute("INSERT OR REPLACE INTO history VALUES(?,?)", (snapshot["date"], json.dumps(snapshot, ensure_ascii=False)))
+            self.db.execute("INSERT OR REPLACE INTO history VALUES(?,?)", (key, json.dumps(snapshot, ensure_ascii=False)))
         return True

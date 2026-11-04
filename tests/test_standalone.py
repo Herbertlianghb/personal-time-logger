@@ -205,9 +205,9 @@ class StandaloneTests(unittest.TestCase):
         with self.assertRaisesRegex(BridgeError, "cursor_expired"):
             self.bridge.handle(self.request("history", date=DAY, cursor=cursor))
 
-    def test_heatmap_counts_utc8_dates_without_inventing_time_or_category(self):
-        midnight = STAMP - 12 * 3600000
-        for stamp in (midnight - 1, midnight, STAMP):
+    def test_heatmap_counts_seven_am_days_without_inventing_time_or_category(self):
+        boundary = STAMP - 5 * 3600000
+        for stamp in (boundary - 1, boundary, STAMP):
             self.bridge.handle(self.request(reported_at_ms=stamp))
         month = self.bridge.handle(self.request("heatmap", month="2026-10"))
         self.assertEqual(month["days"][0]["record_count"], 2)

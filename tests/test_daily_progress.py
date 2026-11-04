@@ -13,6 +13,7 @@ from PySide6.QtCore import QDate, QEvent, QObject, QSettings, QTimer, Signal
 from PySide6.QtWidgets import QApplication, QDialog, QDoubleSpinBox
 
 from time_logger.desktop_controller import DesktopController, LOCAL_TZ
+from time_logger.day_window import recording_date
 from time_logger.desktop_ui import DesktopWindow, COLORS
 from tests.test_desktop_floating import FakeController
 
@@ -21,12 +22,13 @@ APP = QApplication.instance() or QApplication([])
 
 def sample(work=7200, study=1800):
     now = datetime.now(LOCAL_TZ)
-    return {"month": now.strftime("%Y-%m"), "as_of_ms": int(now.timestamp() * 1000),
-            "daily_goals": {"source": "feishu", "date": now.date().isoformat(),
+    day = recording_date(now).isoformat()
+    return {"date": day, "day_start_hour": 7, "month": day[:7], "as_of_ms": int(now.timestamp() * 1000),
+            "daily_goals": {"source": "feishu", "date": day,
                 "work_hours": 2, "study_hours": 1, "as_of_ms": int(now.timestamp() * 1000),
                 "settings_url": "https://my.feishu.cn/base/synthetic?table=synthetic",
                 "cache": {"state": "fresh"}},
-            "cache": {"state": "fresh"}, "days": [{"date": now.date().isoformat(),
+            "cache": {"state": "fresh"}, "days": [{"date": day,
             "categories": {"工作": {"recorded_seconds": work, "estimated_seconds": 0},
                            "学习": {"recorded_seconds": study, "estimated_seconds": 0}}}]}
 
@@ -170,6 +172,26 @@ class DailyProgressTests(unittest.TestCase):
             self.assertIn("synthetic", opened.call_args.args[0].toString())
         self.assertEqual(self.settings.value("goals/work_hours", type=float), 9)
 
+    def test_seven_am_rollover_follows_today_but_preserves_manual_browsing(self):
+        from datetime import date
+        old, new = date(2026, 12, 31), date(2027, 1, 1)
+        self.window._today = old.isoformat()
+        self.window.date_edit.setDate(QDate(2026, 12, 31))
+        with patch("time_logger.desktop_ui.recording_date", return_value=new):
+            self.window._day_tick()
+        self.assertEqual(self.window.selected_date(), new.isoformat())
+        self.window._today = old.isoformat()
+        self.window.date_edit.setDate(QDate(2026, 12, 20))
+        with patch("time_logger.desktop_ui.recording_date", return_value=new):
+            self.window._day_tick()
+        self.assertEqual(self.window.selected_date(), "2026-12-20")
+
+    def test_natural_day_cache_cannot_show_a_seven_am_success(self):
+        value = sample()
+        value["day_start_hour"] = 0
+        self.publish(value)
+        self.assertEqual(self.window.goal_rows["work"][1].text(), "● 待读取")
+
 
 class DailyProgressReadTests(unittest.TestCase):
     def setUp(self):
@@ -184,33 +206,33 @@ class DailyProgressReadTests(unittest.TestCase):
         self.controller.stop()
         self.temp.cleanup()
 
-    def test_reads_current_month_independently_of_browsing_and_caches(self):
+    def test_reads_current_activity_day_independently_of_browsing_and_caches(self):
         self.controller.day = "2026-01-01"
         value = sample()
-        self.transport.request.return_value = {"heatmap": value}
+        self.transport.request.return_value = {"history": value}
         self.controller._refresh_daily_progress()
-        self.transport.request.assert_called_once_with("heatmap", month=value["month"], scope="month", refresh=False)
+        self.transport.request.assert_called_once_with("history", date=value["date"], day_start_hour=7, limit=1)
         self.assertEqual(self.values, [value])
         self.assertEqual(self.states[-1], "")
         self.assertFalse(self.controller.daily_progress_requested)
-        self.assertEqual(self.controller.local.preference("heatmap:" + value["month"]), value)
+        self.assertEqual(self.controller.local.preference("daily_progress:start:7"), value)
 
     def test_reopen_labels_existing_cache_and_keeps_refresh_requested(self):
         value = sample()
-        self.controller.local.set_preference("heatmap:" + value["month"], value)
+        self.controller.local.set_preference("daily_progress:start:7", value)
         self.controller.set_visible(True)
         self.assertTrue(self.values[-1]["cache"]["local_cached"])
         self.assertEqual(self.states[-1], "缓存待刷新")
         self.assertTrue(self.controller.daily_progress_requested)
         self.transport.request.assert_not_called()
 
-    def test_wrong_month_or_missing_today_does_not_publish_or_replace_cache(self):
+    def test_wrong_day_or_boundary_does_not_publish_or_replace_cache(self):
         original = sample()
-        key = "heatmap:" + original["month"]
+        key = "daily_progress:start:7"
         self.controller.local.set_preference(key, original)
-        for change in ({"month": "2000-01"}, {"days": []}):
+        for change in ({"date": "2000-01-01"}, {"days": []}, {"day_start_hour": 0}):
             value = {**original, **change}
-            self.transport.request.return_value = {"heatmap": value}
+            self.transport.request.return_value = {"history": value}
             with self.assertRaises(ValueError):
                 self.controller._refresh_daily_progress()
         self.assertFalse(self.values)
@@ -218,11 +240,11 @@ class DailyProgressReadTests(unittest.TestCase):
 
     def test_stale_response_preserves_last_good_cache_and_requests_refresh(self):
         original = sample()
-        key = "heatmap:" + original["month"]
+        key = "daily_progress:start:7"
         self.controller.local.set_preference(key, original)
         stale = copy.deepcopy(original)
         stale["cache"] = {"state": "stale", "refresh_error": "offline"}
-        self.transport.request.return_value = {"heatmap": stale}
+        self.transport.request.return_value = {"history": stale}
         self.controller._refresh_daily_progress()
         self.assertEqual(self.states[-1], "缓存待刷新")
         self.assertTrue(self.controller.daily_progress_requested)

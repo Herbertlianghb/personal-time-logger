@@ -89,10 +89,12 @@ def _split_intervals(intervals):
 
 def _activity_boundary(block, key):
     # Proposals have already validated explicit quotes and report-anchor clocks.
-    # Estimates and unknowns must never become precise formal timestamps.
+    # Only provenance-checked report/relative estimates may be saved as windows.
     claim = block.get(key) or {}
     value = claim.get("value_ms")
-    return value if type(value) is int and claim.get("kind") in {"explicit_user", "report_anchor"} else None
+    supported = claim.get("kind") in {"explicit_user", "report_anchor"}
+    supported = supported or (claim.get("kind") == "estimate" and isinstance(claim.get("basis"), dict))
+    return value if type(value) is int and supported else None
 
 
 def _non_effort_projection(fields):
@@ -237,6 +239,15 @@ class HttpBaseTransport(LarkCliTransport):
         self.read_only = not allow_formal_write
         self.prefix = f"/base/v3/bases/{base_token}/tables/{table_id}"
 
+    def get_many(self, record_ids):
+        ids = list(dict.fromkeys(record_ids))
+        rows = []
+        for offset in range(0, len(ids), 50):
+            data = self.platform.request("POST", self.prefix + "/records/batch_get",
+                                         {"record_id_list": ids[offset:offset + 50]})["data"]
+            rows.extend(self._records(data))
+        return rows
+
     def _call(self, command, *arguments, payload=None, write=False):
         if write and self.read_only:
             raise BaseSyncError("formal_base_read_only")
@@ -363,6 +374,9 @@ class BaseAdapter:
                             else "仅保留已知的一端时间；另一端未知，不计算时长。"
                             if counting == "partial_activity_window"
                             else "活动已发生，起止或投入时长未知；不以零代替未知。")
+            if not inactive and any(block.get(key, {}).get("kind") in {"estimate", "report_anchor"}
+                                    and _activity_boundary(block, key) is not None for key in ("start", "end")):
+                display_note = "估算／报告活动窗口，非实测起止、净人工或实测睡眠时长。" + display_note
         desired, counters = {}, {}
         for day, start, end in pieces:
             index = counters.get(day, 0)

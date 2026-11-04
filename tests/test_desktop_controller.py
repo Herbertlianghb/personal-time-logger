@@ -74,7 +74,7 @@ class ControllerTests(unittest.TestCase):
     def test_visible_refresh_reads_snapshot_and_history_only(self):
         self.controller.visible = True
         self.controller.day = "2026-10-26"
-        snap = {"date": "2026-10-26", "as_of_ms": 1000, "data_revision": "formal", "activities": [], "summary": {"human_seconds": None}}
+        snap = {"day_start_hour": 7, "date": "2026-10-26", "as_of_ms": 1000, "data_revision": "formal", "activities": [], "summary": {"human_seconds": None}}
         self.transport.actions = [("snapshot", {"submissions": [], "pending": [], "questions": []}), ("history", {"history": snap})]
         self.controller._run()
         self.assertEqual([op for op, kwargs in self.transport.calls], ["snapshot", "history"])
@@ -90,13 +90,13 @@ class ControllerTests(unittest.TestCase):
         self.assertIn("同步受阻", self.states[-1])
 
     def test_failed_refresh_keeps_cached_snapshot_and_labels_it_stale(self):
-        good = {"date": "2026-10-26", "as_of_ms": 1000, "activities": [{"id": "formal"}], "summary": {"human_seconds": None}}
+        good = {"day_start_hour": 7, "date": "2026-10-26", "as_of_ms": 1000, "activities": [{"id": "formal"}], "summary": {"human_seconds": None}}
         self.controller.local.save_history(good)
         self.controller.visible = True
         self.controller.day = "2026-10-26"
         self.transport.actions = [("snapshot", OSError("expired"))]
         self.controller._run()
-        self.assertEqual(self.controller.local.cache("2026-10-26"), good)
+        self.assertEqual(self.controller.local.cache("2026-10-26", 7), good)
         self.assertTrue(self.snapshots[-1]["cache"]["stale"])
         self.assertTrue(self.snapshots[-1]["cache"]["local_cached"])
 
@@ -111,8 +111,8 @@ class ControllerTests(unittest.TestCase):
     def test_paginated_history_keeps_same_version_and_whole_day_summary(self):
         self.controller.visible = True
         self.controller.day = "2026-10-26"
-        first = {"date": "2026-10-26", "as_of_ms": 1000, "data_revision": "same", "items": [{"id": "one"}], "summary": {"human_seconds": 10}, "next_cursor": "next"}
-        second = {"date": "2026-10-26", "as_of_ms": 1000, "data_revision": "same", "items": [{"id": "two"}], "next_cursor": None}
+        first = {"day_start_hour": 7, "date": "2026-10-26", "as_of_ms": 1000, "data_revision": "same", "items": [{"id": "one"}], "summary": {"human_seconds": 10}, "next_cursor": "next"}
+        second = {"day_start_hour": 7, "date": "2026-10-26", "as_of_ms": 1000, "data_revision": "same", "items": [{"id": "two"}], "next_cursor": None}
         self.transport.actions = [("snapshot", {"submissions": [], "pending": [], "questions": []}), ("history", {"history": first}), ("history", {"history": second})]
         self.controller._run()
         self.assertEqual([item["id"] for item in self.snapshots[-1]["activities"]], ["one", "two"])
@@ -121,13 +121,13 @@ class ControllerTests(unittest.TestCase):
     def test_pagination_version_change_never_replaces_good_cache(self):
         self.controller.visible = True
         self.controller.day = "2026-10-26"
-        good = {"date": "2026-10-26", "as_of_ms": 500, "data_revision": "old-good", "activities": [{"id": "cached"}]}
+        good = {"day_start_hour": 7, "date": "2026-10-26", "as_of_ms": 500, "data_revision": "old-good", "activities": [{"id": "cached"}]}
         self.controller.local.save_history(good)
-        first = {"date": "2026-10-26", "as_of_ms": 1000, "data_revision": "same", "items": [{"id": "one"}], "next_cursor": "next"}
-        second = {"date": "2026-10-26", "as_of_ms": 1001, "data_revision": "different", "items": [{"id": "two"}]}
+        first = {"day_start_hour": 7, "date": "2026-10-26", "as_of_ms": 1000, "data_revision": "same", "items": [{"id": "one"}], "next_cursor": "next"}
+        second = {"day_start_hour": 7, "date": "2026-10-26", "as_of_ms": 1001, "data_revision": "different", "items": [{"id": "two"}]}
         self.transport.actions = [("snapshot", {"submissions": [], "pending": [], "questions": []}), ("history", {"history": first}), ("history", {"history": second})]
         self.controller._run()
-        self.assertEqual(self.controller.local.cache("2026-10-26"), good)
+        self.assertEqual(self.controller.local.cache("2026-10-26", 7), good)
         self.assertEqual(self.snapshots[-1]["data_revision"], "old-good")
 
     def test_refresh_preserves_latest_server_save_receipt(self):
@@ -137,7 +137,7 @@ class ControllerTests(unittest.TestCase):
         self.controller.local.acknowledge(sid, {"stage": "server_saved", "observation_id": "stable"})
         self.controller.visible = True
         self.controller.day = "2026-10-26"
-        history = {"date": self.controller.day, "as_of_ms": 1000, "activities": [], "summary": {"human_seconds": None}}
+        history = {"day_start_hour": 7, "date": self.controller.day, "as_of_ms": 1000, "activities": [], "summary": {"human_seconds": None}}
         self.transport.actions = [("snapshot", {"submissions": [], "pending": [], "questions": []}), ("history", {"history": history})]
         self.controller._run()
         self.assertEqual(self.states[-1], "服务器已保存，待整理")
@@ -150,7 +150,7 @@ class ControllerTests(unittest.TestCase):
         self.controller.local.acknowledge(sid, {"stage": "server_saved", "observation_id": "stable"})
         self.controller.visible = True
         self.controller.day = "2026-10-26"
-        history = {"date": self.controller.day, "as_of_ms": 1000, "activities": [], "summary": {"human_seconds": None}}
+        history = {"day_start_hour": 7, "date": self.controller.day, "as_of_ms": 1000, "activities": [], "summary": {"human_seconds": None}}
         self.transport.actions = [("snapshot", {"server_now_ms": 1000, "submissions": [{"client_submission_id": sid, "stage": "archived", "observation_id": "stable"}], "pending": [], "questions": []}), ("history", {"history": history})]
         self.controller._run()
         self.assertEqual(self.states[-1], "已归档，飞书已核验")
@@ -236,13 +236,13 @@ class ControllerTests(unittest.TestCase):
         self.controller.visible = True
         self.controller.day = "2026-10-26"
         self.controller._watch_chat_mirror(sid, response, uploaded=True, now=100)
-        history = {"date": self.controller.day, "as_of_ms": 1000, "activities": [], "summary": {"human_seconds": None}}
+        history = {"day_start_hour": 7, "date": self.controller.day, "as_of_ms": 1000, "activities": [], "summary": {"human_seconds": None}}
         today = datetime.now(LOCAL_TZ).date()
         self.transport.actions = [
             ("snapshot", {"server_now_ms": 1000, "submissions": [response], "pending": [], "questions": []}),
             ("history", {"history": history}),
-            ("heatmap", {"month": today.strftime("%Y-%m"), "as_of_ms": 1000,
-                         "days": [{"date": today.isoformat()}]}),
+            ("history", {"date": today.isoformat(), "day_start_hour": 7, "as_of_ms": 1000,
+                         "days": [{"day_start_hour": 7, "date": today.isoformat()}]}),
             ("status", {"server_now_ms": 2000, "submissions": [{**response, "chat_mirror_state": "sent"}]}),
         ]
         clock = [100]
@@ -253,7 +253,7 @@ class ControllerTests(unittest.TestCase):
         self.controller.wakeup = StepWakeup()
         with patch("time_logger.desktop_controller.time.monotonic", side_effect=lambda: clock[0]):
             self.controller._run()
-        self.assertEqual([op for op, fields in self.transport.calls], ["snapshot", "history", "heatmap", "status"])
+        self.assertEqual([op for op, fields in self.transport.calls], ["snapshot", "history", "history", "status"])
         self.assertEqual(len(self.snapshots), 1)
 
     def _stepping_worker(self, on_wait=None):
@@ -336,7 +336,7 @@ class ControllerTests(unittest.TestCase):
                 self.controller.submit("new report while history is offline")
                 queued.append(True)
         clock, attempts = self._stepping_worker(on_wait)
-        history = {"date": self.controller.day, "as_of_ms": 1000, "activities": []}
+        history = {"day_start_hour": 7, "date": self.controller.day, "as_of_ms": 1000, "activities": []}
         self.transport.actions = [("snapshot", OSError("history_offline")),
             ("submit", {"server_now_ms": 2000, "submission": {"stage": "server_saved", "observation_id": "saved"}}),
             ("snapshot", {"submissions": [], "pending": [], "questions": []}), ("history", {"history": history})]
@@ -365,7 +365,7 @@ class ControllerTests(unittest.TestCase):
         sid, body, response = self._saved_mirror(mirror="sent")
         self.controller.visible = True
         self.controller.day = "2026-10-26"
-        history = {"date": self.controller.day, "as_of_ms": 1000, "activities": []}
+        history = {"day_start_hour": 7, "date": self.controller.day, "as_of_ms": 1000, "activities": []}
         self.transport.actions = [("snapshot", {"submissions": [], "pending": [], "questions": []}),
                                   ("history", {"history": history})]
         self.assertTrue(self.controller.retry_sync())

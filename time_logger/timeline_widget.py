@@ -240,6 +240,9 @@ class TimelineWidget(QWidget):
                 if left <= value <= right:
                     candidates.append((value, "report", "报告"))
             for timestamp, kind, verb in candidates:
+                boundary_kind = item.get("start_kind" if kind in {"activity", "continuation"} else "end_kind")
+                if boundary_kind in {"estimate", "report_anchor"}:
+                    verb += "（约）" if boundary_kind == "estimate" else "（报告）"
                 self.anchors.append({"key": f"{identity}:{kind}:{timestamp}", "timestamp": timestamp,
                     "y": self.scale.y(timestamp), "kind": kind, "item": item, "track": "ai" if is_ai else "human",
                     "title": f"{clock(timestamp)} · {'AI ' if is_ai else ''}{verb} · {item.get('name', '活动')}"})
@@ -399,7 +402,7 @@ class TimelineWidget(QWidget):
         self.tags = self._category_tags()
         human_x, bar_x, ai_x = 75.0, 84.0, width - 24.0
         bar_width = max(60.0, width - 160.0)
-        p.drawText(QPointF(0, 15), "明确时刻")
+        p.drawText(QPointF(0, 15), "记录时刻")
         p.drawText(QPointF(bar_x, 15), "活动 / 生活")
         p.drawText(QRectF(ai_x - 20, 0, 40, 22), Qt.AlignmentFlag.AlignHCenter, "AI")
         if not self.anchors and not self.bars:

@@ -10,6 +10,7 @@ from .calculator import LOCAL_TZ
 from .desktop_bridge import BridgeError, _date_range
 from .heatmap import CATEGORIES, period_bounds
 from .store import digest, now_ms, packed
+from .day_window import DAY_START_HOUR, recording_date
 
 
 def _organized_item(store, block, left, right):
@@ -72,8 +73,9 @@ def _item(row):
             "result": "", "subtasks": [], "notes": "", "uncertainty": "已保存原文；报告时刻不代表活动起止或时长。"}
 
 
-def history(store, day, cursor=None, limit=100):
-    left, right = _date_range(day)
+def history(store, day, cursor=None, limit=100, *, day_start_hour=0):
+    from .day_window import day_bounds
+    left, right = day_bounds(day, day_start_hour)
     timestamp = now_ms()
     offset, watermark, as_of = 0, None, timestamp
     if cursor:
@@ -81,6 +83,7 @@ def history(store, day, cursor=None, limit=100):
             token = json.loads(base64.urlsafe_b64decode(cursor.encode("ascii")))
             offset, watermark, as_of = token["offset"], token["watermark"], token["as_of_ms"]
             if (token["date"] != day or token["scope"] != store.scope
+                    or token.get("day_start_hour", 0) != day_start_hour
                     or type(offset) is not int or not 0 <= offset <= 20000
                     or type(watermark) is not int or not 0 <= watermark < 2 ** 63
                     or type(as_of) is not int or not 0 < as_of <= timestamp + 1000):
@@ -127,10 +130,17 @@ def history(store, day, cursor=None, limit=100):
                    "scope": "Codex 按需整理；起止与分类有原文来源，未知保留；记录区间不等于净人工投入。"}
     next_cursor = None
     if offset + len(items) < total:
-        next_cursor = base64.urlsafe_b64encode(packed({"date": day, "scope": store.scope,
+        next_cursor = base64.urlsafe_b64encode(packed({"date": day, "scope": store.scope, "day_start_hour": day_start_hour,
             "watermark": watermark, "activity_hash": activity_hash, "as_of_ms": as_of, "offset": offset + len(items)}).encode("utf-8")).decode("ascii")
     revision = digest({"scope": store.scope, "date": day, "watermark": watermark, "activities": activity_hash, "total": total})
-    return {"mode": "desktop_organized" if organized else "desktop_only", "date": day, "timezone": "Asia/Taipei", "day_start_ms": left,
+    from .heatmap import _totals as activity_totals
+    projected = [{**item, "recorded_intervals": [] if item.get("estimated") else item["recorded_intervals"]} for item in organized]
+    block_map = {block["activity_id"]: block for block in blocks}
+    totals = activity_totals(projected, left, min(right, as_of), block_map)
+    totals["categories"] = {category: activity_totals([i for i in projected if i.get("category") == category],
+        left, min(right, as_of), block_map) for category in CATEGORIES}
+    return {"mode": "desktop_organized" if organized else "desktop_only", "date": day, "day_start_hour": day_start_hour,
+            "recorded_totals": totals, "timezone": "Asia/Taipei", "day_start_ms": left,
             "day_end_ms": right, "display_end_ms": max(left, min(right, as_of)), "as_of_ms": as_of,
             "server_now_ms": timestamp, "data_revision": revision, "source_hash": revision,
             "items": items, "summary": summary, "total_items": total, "next_cursor": next_cursor,
@@ -155,12 +165,12 @@ def heatmap(store, month, scope="month"):
         first, following = period_bounds(month, scope)
     except ValueError as exc:
         raise BridgeError(str(exc)) from None
-    left = int(datetime.combine(first, time(), LOCAL_TZ).timestamp() * 1000)
-    right = int(datetime.combine(following, time(), LOCAL_TZ).timestamp() * 1000)
+    from .heatmap import _stamp
+    left, right = _stamp(first), _stamp(following)
     timestamp = now_ms()
     with store.transaction():
         blocks = store.current_activities()
-        rows = store.db.execute("""SELECT strftime('%Y-%m-%d',reported_at_ms/1000,'unixepoch','+8 hours') AS day,
+        rows = store.db.execute("""SELECT strftime('%Y-%m-%d',reported_at_ms/1000,'unixepoch','+8 hours','-7 hours') AS day,
                                    count(*) AS count FROM desktop_submissions
                                    WHERE reported_at_ms>=? AND reported_at_ms<? GROUP BY day""", (left, right)).fetchall()
         counts = {row["day"]: row["count"] for row in rows}
@@ -169,7 +179,7 @@ def heatmap(store, month, scope="month"):
     raw_counts = {}
     for row in submissions:
         if row["observation_id"] not in covered:
-            key = datetime.fromtimestamp(row["reported_at_ms"] / 1000, LOCAL_TZ).date().isoformat()
+            key = recording_date(datetime.fromtimestamp(row["reported_at_ms"] / 1000, LOCAL_TZ)).isoformat()
             raw_counts[key] = raw_counts.get(key, 0) + 1
     projected = [item for block in blocks if (item := _organized_item(store, block, left, right)) is not None]
     def totals(start, finish, raw_count):
@@ -190,11 +200,12 @@ def heatmap(store, month, scope="month"):
     days, current = [], first
     while current < following:
         day = current.isoformat()
-        start = int(datetime.combine(current, time(), LOCAL_TZ).timestamp() * 1000)
+        start = _stamp(current)
         values = totals(start, start + 86400000, raw_counts.get(day, 0)) if blocks else _totals(counts.get(day, 0))
         days.append({"date": day, "future": start >= timestamp, **values})
         current += timedelta(days=1)
     return {"mode": "desktop_organized" if projected else "desktop_only", "month": month, "scope": scope,
+            "day_start_hour": DAY_START_HOUR, "range_start_ms": left, "range_end_ms": right,
             "range_start": first.isoformat(), "range_end": following.isoformat(), "timezone": "Asia/Taipei",
             "as_of_ms": timestamp, "server_now_ms": timestamp, "days": days,
             "summary": totals(left, right, sum(raw_counts.values())) if blocks else _totals(sum(counts.values())), "data_revision": digest({"scope": store.scope, "days": days}),

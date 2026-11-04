@@ -14,6 +14,7 @@ from datetime import date, datetime, time, timedelta
 from .base_adapter import ALLOWLIST, HttpBaseTransport, _schema_fields
 from .calculator import LOCAL_TZ, seconds
 from .store import digest, now_ms
+from .day_window import DAY_START_HOUR, day_bounds, recording_date
 from .timeline import (_ai_items, _claims, _clip, _date_anchor, _evidence,
                        _item, _local_state, _merge_items, _query, _relevant,
                        _timestamp)
@@ -21,7 +22,7 @@ from .timeline import (_ai_items, _claims, _clip, _date_anchor, _evidence,
 
 CATEGORIES = ("工作", "生活", "娱乐", "学习", "休息", "运动")
 CACHE_TTL_MS = 60000
-DISPLAY_VERSION = 3
+DISPLAY_VERSION = 5
 _MONTH = re.compile(r"^[0-9]{4}-[0-9]{2}$")
 _EXPLICIT_AI_WINDOW = re.compile(
     r"^(?:(?:AI|模型|机器)\s*(?:后台)?执行窗口|(?:纯|仅)(?:AI|模型|机器)\s*(?:后台)?执行(?:窗口)?)(?:$|[\s:：·—（(])",
@@ -54,7 +55,7 @@ def period_bounds(month, scope="month"):
 
 
 def _stamp(day):
-    return int(datetime.combine(day, time(), LOCAL_TZ).timestamp() * 1000)
+    return day_bounds(day.isoformat(), DAY_START_HOUR)[0]
 
 
 def _ai_window(item, blocks):
@@ -77,6 +78,9 @@ def _heatmap_item(item, fields, left, right):
     window = _clip([[start, end]], left, right) if start is not None and end is not None else []
     notes = str(fields.get("备注") or "")
     estimated = bool(item.get("estimated") or _COMPLETION_MARKER in notes or _ESTIMATED_WINDOW.search(notes))
+    _, claims = _claims(fields)
+    estimated = estimated or any((claims or {}).get(key, {}).get("kind") in {"estimate", "report_anchor"}
+                                 for key in ("start", "end"))
     item["heatmap_estimated_intervals"] = window if estimated else []
     item["recorded_intervals"] = [] if estimated else window
     return item
@@ -151,7 +155,7 @@ class HeatmapReader:
         found = {}
         if right > left:
             previous = (first - timedelta(days=1)).isoformat()
-            after = following.isoformat()
+            after = (following + timedelta(days=1)).isoformat()
             # Date predicates are deliberately wider than the month boundary.
             # Exact milliseconds are compared locally, as in the day timeline.
             predicates = [
@@ -166,6 +170,7 @@ class HeatmapReader:
                     if row["record_id"] in found and found[row["record_id"]]["fields"] != row["fields"]:
                         raise ValueError("heatmap_remote_changed_during_read")
                     found[row["record_id"]] = row
+            untimed_ids = []
             for mapping in mappings:
                 baseline = json.loads(mapping["baseline"]) if mapping.get("baseline") else {}
                 if _timestamp(baseline.get("开始时间")) is not None or _timestamp(baseline.get("结束时间")) is not None:
@@ -173,7 +178,13 @@ class HeatmapReader:
                 _, claims = _claims(baseline)
                 evidence = _evidence(self.store, (claims or {}).get("evidence_refs", []))
                 if _relevant(None, None, _date_anchor(evidence), left, right) and mapping["remote_id"] not in found:
-                    row = self.transport.get(mapping["remote_id"])
+                    untimed_ids.append(mapping["remote_id"])
+            if untimed_ids:
+                if hasattr(self.transport, "get_many"):
+                    untimed = self.transport.get_many(untimed_ids)
+                else:
+                    untimed = [self.transport.get(rid) for rid in dict.fromkeys(untimed_ids)]
+                for row in untimed:
                     if row:
                         found[row["record_id"]] = row
         items = []
@@ -203,7 +214,8 @@ class HeatmapReader:
                               (item.get("category") == category if category != "unknown" else item.get("category") not in CATEGORIES)],
                              left, right, blocks)
             for category in (*CATEGORIES, "unknown")}
-        return {"month": month, "scope": scope,
+        return {"month": month, "scope": scope, "day_start_hour": DAY_START_HOUR,
+                "range_start_ms": left, "range_end_ms": month_right,
                 "range_start": first.isoformat(), "range_end": following.isoformat(),
                 "timezone": "Asia/Taipei", "as_of_ms": timestamp,
                 "server_now_ms": timestamp, "days": days, "summary": summary,
@@ -224,13 +236,14 @@ class HeatmapReader:
         local_state = _local_state(self.store)
         source = getattr(self.transport, "table_key", None)
         source_hash = digest(source)[:24] if source is not None else "test"
-        key = "desktop_heatmap_cache:" + source_hash + ":" + month
+        key = "desktop_heatmap_cache:" + source_hash + ":start:7:" + month
         if scope != "month":
             key += ":" + scope
         state_hash = digest({"display_version": DISPLAY_VERSION, "scope": scope, "mappings": local_state[1],
                              "activities": [(key, value["revision"]) for key, value in sorted(local_state[0].items())]})
         cached = self.store.get_setting(key)
-        if cached and (cached.get("month") != month or cached.get("scope", "month") != scope):
+        if cached and (cached.get("month") != month or cached.get("scope", "month") != scope
+                       or cached.get("day_start_hour") != DAY_START_HOUR):
             cached = None
         cache_state, error = "fresh", None
         # Refresh requests still honor the bounded minimum interval, so repeated
@@ -268,7 +281,7 @@ def monthly_heatmap(store, config, month, *, refresh=False, scope="month"):
     platform = Feishu(config["app_id"], config["app_secret"])
     transport = HttpBaseTransport(platform, base, table)
     result = HeatmapReader(store, transport).month(month, refresh=refresh, scope=scope)
-    today = datetime.fromtimestamp(result["server_now_ms"] / 1000, LOCAL_TZ).date().isoformat()
+    today = recording_date(datetime.fromtimestamp(result["server_now_ms"] / 1000, LOCAL_TZ)).isoformat()
     standards = config.get("time_standards_table_id")
     if standards:
         goals_transport = HttpBaseTransport(platform, base, standards)

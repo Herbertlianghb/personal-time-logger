@@ -169,6 +169,16 @@ class QuickInputWindow(QWidget):
         if saved:
             self.editor.setFocus()
 
+    def showEvent(self, event):
+        super().showEvent(event)
+        if hasattr(self.main.controller, "set_quick_input_visible"):
+            self.main.controller.set_quick_input_visible(True)
+
+    def hideEvent(self, event):
+        super().hideEvent(event)
+        if hasattr(self.main.controller, "set_quick_input_visible"):
+            self.main.controller.set_quick_input_visible(False)
+
     def closeEvent(self, event):
         if not self._shutting_down:
             if self.editor.composing:

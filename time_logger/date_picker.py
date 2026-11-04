@@ -11,10 +11,11 @@ from PySide6.QtWidgets import (
 )
 
 from .timeline_widget import TAIPEI
+from .day_window import recording_date
 
 
 def today_in_taipei():
-    value = datetime.now(TAIPEI).date()
+    value = recording_date()
     return QDate(value.year, value.month, value.day)
 
 

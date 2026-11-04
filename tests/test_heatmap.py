@@ -67,7 +67,7 @@ class HeatmapTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.store = Store(Path(self.temp.name) / "test.sqlite3", "synthetic", ["self"])
         self.addCleanup(self.store.close)
-        self.now = stamp("2026-11-01T00:00:00+08:00")
+        self.now = stamp("2026-11-01T12:00:00+08:00")
 
     def reader(self, rows):
         self.transport = ReadTransport(rows)
@@ -105,9 +105,9 @@ class HeatmapTests(unittest.TestCase):
         self.assertEqual(len(result["days"]), 365)
         self.assertEqual(result["days"][0]["date"], "2025-11-01")
         self.assertEqual(result["days"][-1]["date"], "2026-10-31")
-        self.assertEqual(result["summary"]["record_count"], 3)
-        self.assertEqual(result["summary"]["categories"]["工作"]["record_count"], 3)
-        self.assertEqual(result["summary"]["recorded_seconds"], 9000)
+        self.assertEqual(result["summary"]["record_count"], 2)
+        self.assertEqual(result["summary"]["categories"]["工作"]["record_count"], 2)
+        self.assertEqual(result["summary"]["recorded_seconds"], 7200)
         self.assertEqual(self.transport.calls, 4)  # Schema + three queries, not twelve monthly scans.
         self.assertLess(len(json.dumps(result, ensure_ascii=False).encode("utf-8")), 4 * 1024 * 1024)
 
@@ -133,8 +133,8 @@ class HeatmapTests(unittest.TestCase):
 
     def test_old_month_only_cache_is_never_a_year_fallback(self):
         reader = self.reader([])
-        cache_key = "desktop_heatmap_cache:" + digest(self.transport.table_key)[:24] + ":2026-10"
-        self.store.set_setting(cache_key, {"month": "2026-10", "as_of_ms": self.now,
+        cache_key = "desktop_heatmap_cache:" + digest(self.transport.table_key)[:24] + ":start:7:2026-10"
+        self.store.set_setting(cache_key, {"month": "2026-10", "day_start_hour": 7, "as_of_ms": self.now,
                                            "local_state_hash": "old-version", "days": [], "summary": {}})
         self.transport.fail = True
         with self.assertRaisesRegex(OSError, "synthetic_unavailable"):
@@ -145,11 +145,11 @@ class HeatmapTests(unittest.TestCase):
         self.assertEqual(fallback["range_end"], "2026-11-01")
         self.assertEqual(fallback["cache"]["state"], "stale")
 
-    def test_cross_midnight_and_overlap_are_clipped_then_unioned(self):
+    def test_cross_seven_am_and_overlap_are_clipped_then_unioned(self):
         reader = self.reader([
-            row("cross", stamp("2026-09-30T23:30:00+08:00"), stamp("2026-10-01T01:00:00+08:00")),
-            row("overlap", stamp("2026-10-01T00:30:00+08:00"), stamp("2026-10-01T01:30:00+08:00")),
-            row("month-edge", stamp("2026-10-31T23:30:00+08:00"), stamp("2026-11-01T01:00:00+08:00")),
+            row("cross", stamp("2026-09-30T23:30:00+08:00"), stamp("2026-10-01T08:00:00+08:00")),
+            row("overlap", stamp("2026-10-01T07:30:00+08:00"), stamp("2026-10-01T08:30:00+08:00")),
+            row("month-edge", stamp("2026-11-01T06:30:00+08:00"), stamp("2026-11-01T08:00:00+08:00")),
         ])
         result = reader.month("2026-10")
         self.assertEqual(result["days"][0]["recorded_seconds"], 5400)
@@ -196,22 +196,22 @@ class HeatmapTests(unittest.TestCase):
         self.assertIsNone(result["summary"]["confirmed_seconds"])
         self.assertIsNone(result["summary"]["human_seconds"])
 
-    def test_estimates_clip_cross_midnight_and_deduplicate_confirmed_overlap(self):
+    def test_estimates_clip_at_seven_am_and_deduplicate_confirmed_overlap(self):
         note = "[time-log-completion:2026-10-28]【估算补齐】依据已有切换节点；活动窗口非净人工"
         result = self.reader([
-            row("sleep", stamp("2026-10-01T23:00:00+08:00"), stamp("2026-10-02T02:00:00+08:00"),
+            row("sleep", stamp("2026-10-02T06:00:00+08:00"), stamp("2026-10-02T09:00:00+08:00"),
                 **{"一级分类": ["休息"], "二级项目": ["睡觉"], "备注": note}),
-            row("confirmed", stamp("2026-10-01T23:30:00+08:00"), stamp("2026-10-02T01:00:00+08:00"),
+            row("confirmed", stamp("2026-10-02T06:30:00+08:00"), stamp("2026-10-02T08:00:00+08:00"),
                 **{"一级分类": ["休息"]}),
-            row("second-estimate", stamp("2026-10-02T01:30:00+08:00"), stamp("2026-10-02T02:30:00+08:00"),
+            row("second-estimate", stamp("2026-10-02T08:30:00+08:00"), stamp("2026-10-02T09:30:00+08:00"),
                 **{"一级分类": ["休息"], "备注": "结束采用报告时间估算"}),
-            row("tags-only", stamp("2026-10-02T03:00:00+08:00"), stamp("2026-10-02T04:00:00+08:00"),
+            row("tags-only", stamp("2026-10-02T10:00:00+08:00"), stamp("2026-10-02T11:00:00+08:00"),
                 **{"备注": "未知人工时长；[time-log-tags:2026-10-28] 补现有分类"}),
         ]).month("2026-10")
         first, second = result["days"][:2]
         self.assertEqual((first["recorded_seconds"], first["estimated_seconds"]), (3600, 1800))
-        # Day two has 00:00–02:30 plus 03:00–04:00 recorded. Of these,
-        # 00:00–01:00 and 03:00–04:00 are confirmed, leaving 90 estimated minutes.
+        # Day two has 07:00–09:30 plus 10:00–11:00 recorded. Of these,
+        # 07:00–08:00 and 10:00–11:00 are confirmed, leaving 90 estimated minutes.
         self.assertEqual((second["recorded_seconds"], second["estimated_seconds"]), (12600, 5400))
         self.assertEqual(result["summary"]["recorded_seconds"], 16200)
         self.assertEqual(result["summary"]["confirmed_seconds"], 9000)
@@ -287,6 +287,53 @@ class HeatmapTests(unittest.TestCase):
         self.assertEqual(stale["cache"]["state"], "stale")
         self.assertEqual(stale["as_of_ms"], first["as_of_ms"])
         self.assertEqual(stale["cache"]["refresh_error"], "OSError")
+
+    def test_year_batches_untimed_records_instead_of_one_network_call_per_record(self):
+        from time_logger.store import packed
+        rows = []
+        for index in range(41):
+            oid = self.store.ingest({"app_scope": "synthetic", "sender_key": "self", "chat_id": "self",
+                "message_id": "untimed-" + str(index), "content": "虚构待补时间活动",
+                "created_at_ms": stamp("2026-10-02T12:00:00+08:00")})["observation_id"]
+            rid, aid = "row-" + str(index), "untimed-" + str(index)
+            item = row(rid, **{"备注": "[PTL:" + aid + ":fact]\n" + packed({"evidence_refs": [oid]})})
+            rows.append(item)
+            with self.store.transaction() as db:
+                db.execute("INSERT INTO base_mapping VALUES(?,?,?,?,?,?)", (aid, "fact", rid, 1, packed(item["fields"]), "synthetic"))
+        class BulkTransport(ReadTransport):
+            batches = []
+            def get(self, rid):
+                raise AssertionError("annual_read_must_not_fetch_untimed_rows_individually")
+            def get_many(self, ids):
+                self.batches.append(list(ids))
+                return [copy.deepcopy(r) for r in self.rows if r["record_id"] in ids]
+        transport = BulkTransport(rows)
+        result = HeatmapReader(self.store, transport, clock=lambda: self.now).month("2026-10", scope="year")
+        self.assertEqual(result["summary"]["record_count"], 41)
+        self.assertEqual(result["summary"]["unknown_count"], 41)
+        self.assertEqual(len(transport.batches), 1)
+        self.assertEqual(len(transport.batches[0]), 41)
+
+    def test_native_batch_read_is_bounded_and_rejects_incomplete_matrices(self):
+        from time_logger.base_adapter import HttpBaseTransport, BaseSyncError
+        class Platform:
+            calls = []
+            broken = False
+            def request(self, method, path, body):
+                self.calls.append((method, path, body))
+                ids = body["record_id_list"]
+                return {"data": {"fields": ["时间花销"], "record_id_list": ids,
+                    "data": [] if self.broken else [["虚构活动"] for _ in ids]}}
+        platform = Platform()
+        transport = HttpBaseTransport(platform, "synthetic-base", "synthetic-table")
+        ids = ["r" + str(i) for i in range(51)]
+        rows = transport.get_many(ids + [ids[0]])
+        self.assertEqual([r["record_id"] for r in rows], ids)
+        self.assertEqual([len(call[2]["record_id_list"]) for call in platform.calls], [50, 1])
+        self.assertTrue(all(call[0] == "POST" and call[1].endswith("/records/batch_get") for call in platform.calls))
+        platform.broken = True
+        with self.assertRaises(BaseSyncError):
+            transport.get_many(["missing-matrix-row"])
 
 
 if __name__ == "__main__":

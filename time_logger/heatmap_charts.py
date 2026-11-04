@@ -30,7 +30,7 @@ def _daily_tip(item):
         text = ("约 " if item.get("estimated_seconds") else "") + duration(value)
     else:
         text = "有记录，起止待补" if item.get("record_count") else "无记录"
-    return (f"{item['date']}\n{text}\n{item.get('record_count', 0)} 条记录 · {item.get('unknown_count', 0)} 条起止不全"
+    return (f"{item['date']} 07:00 至次日 07:00\n{text}\n{item.get('record_count', 0)} 条记录 · {item.get('unknown_count', 0)} 条起止不全"
             + _estimate_tip(item))
 
 

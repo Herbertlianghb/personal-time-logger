@@ -9,7 +9,7 @@ from unittest.mock import patch
 from PySide6.QtCore import QObject, Signal, Qt, QSettings, QDate, QPoint
 from PySide6.QtGui import QInputMethodEvent
 from PySide6.QtTest import QTest, QSignalSpy
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QSplitter
 
 from time_logger.desktop_ui import ActivityDialog, DesktopWindow, RecordEdit
 from time_logger.timeline_widget import TimeScale, TimelineWidget, label_groups, VISIBLE_CATEGORIES
@@ -219,6 +219,88 @@ class WindowTests(unittest.TestCase):
         for _ in range(5):
             APP.processEvents()
             QTest.qWait(1)
+
+    def test_history_divider_drag_changes_viewport_without_moving_composer(self):
+        self.window.set_expanded(True)
+        self.window.resize(460, 740)
+        self.window.show()
+        self._settle_history_layout()
+        splitter = self.window.history.findChild(QSplitter)
+        self.assertIsNotNone(splitter, "The timeline needs a draggable upper boundary")
+        splitter.setSizes([140, 300])
+        self._settle_history_layout()
+        composer = self.window.composer.geometry()
+        viewport_height = self.window.scroll.viewport().height()
+        handle = splitter.handle(1)
+        start = handle.rect().center()
+        QTest.mousePress(handle, Qt.MouseButton.LeftButton, pos=start)
+        QTest.mouseMove(handle, start + QPoint(0, -60))
+        QTest.mouseRelease(handle, Qt.MouseButton.LeftButton, pos=handle.rect().center())
+        self._settle_history_layout()
+        taller = self.window.scroll.viewport().height()
+        self.assertGreater(taller, viewport_height + 40)
+        self.assertEqual(self.window.composer.geometry(), composer)
+        start = handle.rect().center()
+        QTest.mousePress(handle, Qt.MouseButton.LeftButton, pos=start)
+        QTest.mouseMove(handle, start + QPoint(0, 70))
+        QTest.mouseRelease(handle, Qt.MouseButton.LeftButton, pos=handle.rect().center())
+        self._settle_history_layout()
+        self.assertLess(self.window.scroll.viewport().height(), taller - 40)
+        self.assertEqual(self.window.composer.geometry(), composer)
+        self.assertFalse(self.controller.calls)
+
+    def test_history_divider_limits_keep_timeline_and_input_available(self):
+        self.window.set_expanded(True)
+        self.window.resize(460, 640)
+        self.window.show()
+        self.window.receive_snapshot(self._scrollable_history())
+        self._settle_history_layout()
+        splitter = self.window.history.findChild(QSplitter)
+        self.assertIsNotNone(splitter, "The timeline needs a draggable upper boundary")
+        self.assertGreaterEqual(self.window.history_overview.viewport().height(),
+                                self.window.history_overview.widget().minimumSizeHint().height())
+        for position in (0, splitter.height()):
+            splitter.moveSplitter(position, 1)
+            self._settle_history_layout()
+            self.assertGreaterEqual(self.window.scroll.height(), 70)
+            self.assertGreaterEqual(splitter.widget(0).height(), 40)
+            self.assertTrue(self.window.rect().contains(
+                self.window.record_button.mapTo(self.window, self.window.record_button.rect().bottomRight())))
+            self.assertEqual(self.window.editor.height(), 74)
+        overview = splitter.widget(0)
+        overview.ensureWidgetVisible(self.window.date_edit)
+        self._settle_history_layout()
+        self.assertTrue(overview.viewport().rect().intersects(
+            self.window.date_edit.rect().translated(self.window.date_edit.mapTo(overview.viewport(), QPoint()))))
+
+    def test_history_divider_remembers_choice_after_updates_collapse_and_reopen(self):
+        self.window.set_expanded(True)
+        self.window.show()
+        snapshot = self._scrollable_history()
+        self.window.receive_snapshot(snapshot)
+        self._settle_history_layout()
+        splitter = self.window.history.findChild(QSplitter)
+        self.assertIsNotNone(splitter, "The timeline needs a draggable upper boundary")
+        splitter.moveSplitter(60, 1)
+        self._settle_history_layout()
+        chosen = splitter.sizes()[0]
+        self.window.receive_snapshot(snapshot)
+        self.window.set_expanded(False)
+        self._settle_history_layout()
+        self.assertTrue(self.window.editor.isVisible())
+        self.window.set_expanded(True)
+        self._settle_history_layout()
+        self.assertAlmostEqual(splitter.sizes()[0], chosen, delta=2)
+        self.window.hide_to_tray()
+        restored = DesktopWindow(self.controller, settings=self.settings, create_tray=False)
+        try:
+            restored.show()
+            self._settle_history_layout()
+            self.assertAlmostEqual(restored.history.findChild(QSplitter).sizes()[0], chosen, delta=2)
+        finally:
+            restored._closing = True
+            restored.close()
+            restored.deleteLater()
 
     def test_default_latest_waits_for_layout_on_initial_date_switch_reopen_and_expand(self):
         value = self._scrollable_history()

@@ -22,6 +22,9 @@
       }
     },
     "time_claim": {
+      "anyOf": [{"$ref": "#/$defs/plain_time_claim"}, {"$ref": "#/$defs/derived_time_claim"}]
+    },
+    "plain_time_claim": {
       "type": "object",
       "additionalProperties": false,
       "required": ["value_ms", "kind", "precision", "source_id", "quote", "date_resolution"],
@@ -32,6 +35,30 @@
         "source_id": {"type": ["string", "null"]},
         "quote": {"type": "string"},
         "date_resolution": {"type": "string", "enum": ["explicit", "contextual", "ambiguous", "unknown"]}
+      }
+    },
+    "derived_time_claim": {
+      "type": "object", "additionalProperties": false,
+      "required": ["value_ms", "kind", "precision", "source_id", "quote", "date_resolution", "basis"],
+      "properties": {
+        "value_ms": {"type": "integer"},
+        "kind": {"type": "string", "enum": ["estimate"]},
+        "precision": {"type": "string", "enum": ["approximate"]},
+        "source_id": {"type": "string"},
+        "quote": {"type": "string"},
+        "date_resolution": {"type": "string", "enum": ["explicit", "contextual"]},
+        "basis": {"$ref": "#/$defs/window_basis"}
+      }
+    },
+    "window_basis": {
+      "type": "object", "additionalProperties": false,
+      "required": ["anchor_source_id", "anchor_value_ms", "anchor_kind", "anchor_quote", "offset_seconds"],
+      "properties": {
+        "anchor_source_id": {"type": "string"},
+        "anchor_value_ms": {"type": "integer"},
+        "anchor_kind": {"type": "string", "enum": ["report_anchor", "explicit_user"]},
+        "anchor_quote": {"type": "string"},
+        "offset_seconds": {"type": "integer"}
       }
     },
     "human_interval": {

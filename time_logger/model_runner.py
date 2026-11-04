@@ -53,6 +53,14 @@ def _strict_json(text: str) -> Any:
 
 def _check_schema(value: Any, schema: dict, root: dict, path: str = "$") -> None:
     """Validate the deliberately small JSON-Schema subset used by this project."""
+    if "anyOf" in schema:
+        for branch in schema["anyOf"]:
+            try:
+                _check_schema(value, branch, root, path)
+                return
+            except InvalidModelProposal:
+                pass
+        raise InvalidModelProposal(f"proposal union mismatch at {path}")
     if "$ref" in schema:
         target: Any = root
         reference = schema["$ref"]

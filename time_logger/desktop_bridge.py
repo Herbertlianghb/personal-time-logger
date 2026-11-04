@@ -324,7 +324,8 @@ class DesktopBridge:
         refresh = request.get("refresh", False)
         if type(refresh) is not bool:
             raise BridgeError("invalid_refresh")
-        return timeline_history(self.store, self.config, day, cursor, limit, refresh=refresh)
+        return timeline_history(self.store, self.config, day, cursor, limit, refresh=refresh,
+                                day_start_hour=request.get("day_start_hour", 0))
 
     def prepare_correction(self, request):
         from .formal import FormalConflict, prepare_correction

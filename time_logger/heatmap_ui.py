@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
 from .heatmap_charts import StatisticsChart
 from .heatmap_statistics import build_statistics
 from .timeline_widget import VISIBLE_CATEGORIES, duration
+from .day_window import DAY_START_HOUR, recording_date
 
 LOCAL_TZ = timezone(timedelta(hours=8))
 
@@ -176,6 +177,9 @@ class HeatmapDialog(QDialog):
     def receive_snapshot(self, snapshot):
         if snapshot.get("month") != self.month_key() or snapshot.get("scope", "month") != self.scope:
             return
+        if snapshot.get("day_start_hour") != DAY_START_HOUR:
+            self.set_status("统计口径待更新，正在等待 07:00 至次日 07:00 的数据。")
+            return
         self.snapshot = snapshot
         cache, stamp = snapshot.get("cache", {}), snapshot.get("as_of_ms")
         when = datetime.fromtimestamp(stamp / 1000, LOCAL_TZ).strftime("%m-%d %H:%M") if stamp else "未知"
@@ -190,14 +194,14 @@ class HeatmapDialog(QDialog):
 
     def render(self):
         self.title.setText(self.month.toString("yyyy 年 M 月"))
-        today = datetime.now(LOCAL_TZ).date()
+        today = recording_date()
         self.next.setEnabled(self.month_key() < today.strftime("%Y-%m"))
         self.previous.setEnabled(self.month.year() > 2000 or self.month.month() > 1)
         start = self.month.addMonths(-11) if self.scope == "year" else self.month
         if start < QDate(2000, 1, 1):
             start = QDate(2000, 1, 1)
         end = self.month.addMonths(1).addDays(-1)
-        self.range_label.setText(f"{'近一年' if self.scope == 'year' else '本月'} · {start.toString('yyyy-MM-dd')} — {end.toString('yyyy-MM-dd')} · {self.category}")
+        self.range_label.setText(f"{'近一年' if self.scope == 'year' else '本月'} · {start.toString('yyyy-MM-dd')} — {end.toString('yyyy-MM-dd')} · 每日07:00—次日07:00 · {self.category}")
         self.statistics = build_statistics(self.snapshot, self.category)
         stats = self.statistics
         if self.snapshot:
@@ -229,7 +233,7 @@ class HeatmapDialog(QDialog):
         self.chart_title.setText({"daily": "时间热力图", "weekly": "每周记录时长", "cumulative": "已记录区间累计"}[self.mode])
         self.legend.setText({
             "daily": "浅 → 深：不足2小时 / 2–4 / 4–8 / 8–12 / 12小时以上；棕色角标含估算，斜纹为有记录但起止待补，空白为无记录。移入查看，点击查看活动及项目。",
-            "weekly": "按周一至周日汇总区间并集，棕色部分为去重后的估算；范围首尾可能不足一周，无可计区间的周保留缺口。移入查看周统计。",
+            "weekly": "按周一07:00至下周一07:00汇总，棕色部分为去重后的估算；范围首尾可能不足一周，无可计区间的周保留缺口。移入查看周统计。",
             "cumulative": "累计确定与估算区间并集，棕色标记含估算；虚线表示当天没有可计区间，累计保持不代表当天实际投入为零。",
         }[self.mode])
         self.chart.set_statistics(stats, self.mode)

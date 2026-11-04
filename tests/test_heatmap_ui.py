@@ -15,7 +15,7 @@ APP = QApplication.instance() or QApplication([])
 
 
 def snapshot(month="2001-01", seconds=3600):
-    return {"month": month, "as_of_ms": 978368400000, "completeness": "partial",
+    return {"day_start_hour": 7, "month": month, "as_of_ms": 978368400000, "completeness": "partial",
             "cache": {"state": "fresh"}, "limitations": ["synthetic test data"],
             "summary": {"record_count": 3, "unknown_count": 2,
                         "categories": {"工作": {"record_count": 1, "unknown_count": 0}}},
@@ -139,24 +139,24 @@ class HeatmapControllerTests(unittest.TestCase):
         self.controller.set_draft("unsent draft")
         self.controller.request_heatmap("2001-01")
         self.controller._refresh_heatmap()
-        self.assertEqual(self.controller.local.preference("heatmap:2001-01"), snapshot())
+        self.assertEqual(self.controller.local.preference("heatmap:start:7:2001-01"), snapshot())
         self.response = {**snapshot(seconds=None), "cache": {"state": "stale"}}
         self.controller.request_heatmap("2001-01", refresh=True)
         self.controller._refresh_heatmap()
-        self.assertEqual(self.controller.local.preference("heatmap:2001-01"), snapshot())
+        self.assertEqual(self.controller.local.preference("heatmap:start:7:2001-01"), snapshot())
         self.assertEqual(self.controller.get_draft(), "unsent draft")
 
     def test_wrong_month_response_does_not_replace_cache(self):
         self.controller.request_heatmap("2001-02")
         with self.assertRaisesRegex(ValueError, "heatmap_month_mismatch"):
             self.controller._refresh_heatmap()
-        self.assertIsNone(self.controller.local.preference("heatmap:2001-02"))
+        self.assertIsNone(self.controller.local.preference("heatmap:start:7:2001-02"))
 
     def test_year_request_rejects_old_server_month_response(self):
         self.controller.request_heatmap("2001-01", scope="year")
         with self.assertRaisesRegex(ValueError, "heatmap_scope_not_supported"):
             self.controller._refresh_heatmap()
-        self.assertIsNone(self.controller.local.preference("heatmap:year:2001-01"))
+        self.assertIsNone(self.controller.local.preference("heatmap:start:7:year:2001-01"))
 
     def test_month_and_year_caches_are_separate(self):
         self.controller.request_heatmap("2001-01")
@@ -164,8 +164,8 @@ class HeatmapControllerTests(unittest.TestCase):
         self.response = {**snapshot(), "scope": "year", "range_start": "2000-02-01", "range_end": "2001-02-01"}
         self.controller.request_heatmap("2001-01", scope="year")
         self.controller._refresh_heatmap()
-        self.assertEqual(self.controller.local.preference("heatmap:2001-01"), snapshot())
-        self.assertEqual(self.controller.local.preference("heatmap:year:2001-01"), self.response)
+        self.assertEqual(self.controller.local.preference("heatmap:start:7:2001-01"), snapshot())
+        self.assertEqual(self.controller.local.preference("heatmap:start:7:year:2001-01"), self.response)
 
 
 if __name__ == "__main__":

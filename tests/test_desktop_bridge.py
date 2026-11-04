@@ -301,7 +301,7 @@ class DesktopBridgeTests(unittest.TestCase):
         with mock.patch.dict("sys.modules", {"time_logger.timeline": fake}):
             result = self.bridge.handle(self.request("history", date="2026-10-01"))
         self.assertTrue(result["ok"])
-        fake.timeline_history.assert_called_once_with(self.store, self.config, "2026-10-01", None, 100, refresh=False)
+        fake.timeline_history.assert_called_once_with(self.store, self.config, "2026-10-01", None, 100, refresh=False, day_start_hour=0)
         for changes in ({"date": "bad"}, {"date": "2026-10-01", "limit": 101}, {"date": "2026-10-01", "refresh": "yes"}):
             with self.assertRaises(BridgeError):
                 self.bridge.handle(self.request("history", **changes))

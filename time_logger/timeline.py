@@ -16,20 +16,17 @@ from .base_adapter import ALLOWLIST, HttpBaseTransport, _canonical, _schema_fiel
 from .calculator import LOCAL_TZ, interval_union, seconds
 from .formal import get_link, record_fingerprint
 from .store import digest, now_ms, packed
+from .day_window import day_bounds
 
 
 CACHE_TTL_MS = 60000
-TIMELINE_DISPLAY_VERSION = 2
+TIMELINE_DISPLAY_VERSION = 3
 _MARKER = re.compile(r"^\[PTL:([A-Za-z0-9_-]{1,100}):([^\]\n]{1,100})\]\n")
 _UNCERTAIN_LEGACY_TIME = re.compile(r"估算|近似|非精确|不确定|起[止始].{0,8}未知|结束.{0,8}未知|切换.{0,8}未知|报告时[刻间]|消息时[刻间]|大约|约\s*\d+\s*分")
 
 
-def _bounds(day):
-    parsed = date.fromisoformat(day)
-    if parsed.isoformat() != day:
-        raise ValueError("invalid_timeline_date")
-    return (int(datetime.combine(parsed, time(), LOCAL_TZ).timestamp() * 1000),
-            int(datetime.combine(parsed + timedelta(days=1), time(), LOCAL_TZ).timestamp() * 1000))
+def _bounds(day, day_start_hour=0):
+    return day_bounds(day, day_start_hour)
 
 
 def _clip(intervals, left, right):
@@ -269,12 +266,14 @@ def _item(fields, record_id, mapping, blocks, schema, store, left, right, as_of_
     explicit_end = _claim_time(block, "end") if verified else None
     uncertain_note = (not verified or is_legacy) and bool(_UNCERTAIN_LEGACY_TIME.search(str(fields.get("备注") or "")))
     estimated_legacy = uncertain_note and not (explicit_start is not None and explicit_end is not None)
+    reported_window = verified and any(block.get(key, {}).get("kind") in {"estimate", "report_anchor"}
+                                       for key in ("start", "end"))
     # A correction can make one boundary explicit without resolving the other.
     # New evidence wins for that field; the old estimated note must neither
     # erase it nor promote the remaining approximate endpoint to an exact one.
     display_start = explicit_start if explicit_start is not None else None if uncertain_note else start
     display_end = explicit_end if explicit_end is not None else None if uncertain_note else end
-    estimate = _sleep_report_pair(block, evidence, as_of_ms) if verified and not is_legacy else None
+    estimate = _sleep_report_pair(block, evidence, as_of_ms) if verified and not is_legacy and start is None and end is None else None
     estimated = _clip([[estimate["start_ms"], estimate["end_ms"]]], left, right) if estimate else []
     if not _relevant(start or display_start, end or display_end, _date_anchor(evidence), left, right) and not estimated:
         return None
@@ -300,13 +299,15 @@ def _item(fields, record_id, mapping, blocks, schema, store, left, right, as_of_
             "revision": block.get("revision", mapping["last_revision"] if mapping else None),
             "name": str(fields.get("时间花销") or "未命名活动"),
             "start_ms": display_start, "end_ms": display_end, "report_ms": report_ms,
+            "start_kind": block.get("start", {}).get("kind") if verified else None,
+            "end_kind": block.get("end", {}).get("kind") if verified else None,
             "received_ms": received_ms,
             "original_start_ms": start, "original_end_ms": end,
             "recorded_intervals": [] if excluded else recorded,
             "estimated_intervals": [{**estimate, "start_ms": a, "end_ms": b} for a, b in estimated],
             "human_intervals": human, "ai_intervals": [],
             "duration_seconds": duration, "duration_kind": "confirmed_human" if human else "recorded_window" if recorded else "estimated_window" if estimated_legacy else "reported_scalar" if scalar is not None else "unknown",
-            "reported_duration_seconds": scalar, "estimated": estimated_legacy or bool(scalar is not None and not recorded),
+            "reported_duration_seconds": scalar, "estimated": estimated_legacy or reported_window or bool(scalar is not None and not recorded),
             "role": block.get("role", "primary"), "actor": "human" if human else "unknown",
             "status": status, "category": _option(fields.get("一级分类")), "project": _option(fields.get("二级项目")),
             "source": "feishu_base", "source_refs": [{"type": "feishu_record", "id": record_id}]
@@ -389,12 +390,56 @@ def _summary(items):
             "completeness": "partial", "scope": "已记录区间与有依据的人工分别计算并集；标量时长、父子任务及AI后台不加到人工。"}
 
 
+def _raw_reports(store, left, right, represented):
+    """Current unrepresented messages are report anchors, never activity windows."""
+    with store.lock:
+        rows = store.db.execute("""SELECT o.observation_id FROM observations o
+            JOIN messages m USING(message_key)
+            WHERE m.app_scope=? AND o.observation_id=m.current_observation_id
+            AND m.message_type='text' AND o.kind IN ('receive','edit')
+            AND m.message_created_at_ms>=? AND m.message_created_at_ms<?
+            AND NOT EXISTS(SELECT 1 FROM acceptance_tests t
+                WHERE t.app_scope=m.app_scope AND t.message_id=m.message_id)
+            ORDER BY m.message_created_at_ms,o.observation_id LIMIT 20001""",
+            (store.scope, left, right)).fetchall()
+    if len(rows) > 20000:
+        raise ValueError("timeline_report_bound")
+    ids = [r[0] for r in rows if r[0] not in represented]
+    evidence = store.evidence(ids) if ids else []
+    result = []
+    for entry in evidence:
+        text = entry.get("content") or ""
+        try:
+            decoded = json.loads(text)
+            if isinstance(decoded, dict) and isinstance(decoded.get("text"), str):
+                text = decoded["text"]
+        except ValueError:
+            pass
+        if not text.strip() or entry.get("is_acceptance_test"):
+            continue
+        reported, received = _report_ms([entry]), _received_ms([entry])
+        result.append({"id": "raw:" + entry["id"], "observation_id": entry["id"],
+            "name": text, "record_ids": [], "record_id": None, "activity_id": None,
+            "revision": None, "editable": False, "start_ms": None, "end_ms": None,
+            "report_ms": reported, "received_ms": received,
+            "original_start_ms": None, "original_end_ms": None,
+            "recorded_intervals": [], "human_intervals": [], "ai_intervals": [], "estimated_intervals": [],
+            "duration_seconds": None, "reported_duration_seconds": None, "duration_kind": "unknown",
+            "estimated": False, "role": "primary", "actor": "unknown", "status": "unknown",
+            "category": None, "project": None,
+            "source": "desktop_raw" if entry.get("source") == "desktop" else "feishu_raw",
+            "formal_state": "pending_organization", "result": "", "subtasks": [], "notes": "",
+            "source_refs": [{"type": "evidence", "id": entry["id"], "report_ms": reported}],
+            "uncertainty": "已保存原文，待整理；报告时刻不代表活动起止或时长。"})
+    return result
+
+
 class TimelineReader:
     def __init__(self, store, transport, *, cache_ttl_ms=CACHE_TTL_MS, clock=now_ms):
         self.store, self.transport, self.cache_ttl_ms, self.clock = store, transport, cache_ttl_ms, clock
 
-    def _fetch(self, day, timestamp, local_state):
-        left, day_right = _bounds(day)
+    def _fetch(self, day, timestamp, local_state, day_start_hour=0):
+        left, day_right = _bounds(day, day_start_hour)
         right = min(day_right, timestamp)
         schema = _schema_fields(self.transport.field_schema())
         if any(schema.get(name, {}).get("type") != kind for name, kind in
@@ -409,13 +454,12 @@ class TimelineReader:
             # Existing verified Base v3 behavior: use broad day predicates and
             # compare exact milliseconds locally. This includes activities
             # beginning before the selected day without scanning all history.
-            predicates = [
-                {"logic": "and", "conditions": [["开始时间", "==", f"ExactDate({day})"]]},
-                {"logic": "and", "conditions": [["结束时间", "==", f"ExactDate({day})"]]},
-                {"logic": "and", "conditions": [
-                    ["开始时间", "<", f"ExactDate({(selected_date + timedelta(days=1)).isoformat()})"],
-                    ["结束时间", ">", f"ExactDate({(selected_date - timedelta(days=1)).isoformat()})"]]},
-            ]
+            dates = [selected_date] + ([selected_date + timedelta(days=1)] if day_start_hour else [])
+            predicates = [{"logic": "and", "conditions": [[field, "==", f"ExactDate({chosen.isoformat()})"]]}
+                          for chosen in dates for field in ("开始时间", "结束时间")]
+            predicates.append({"logic": "and", "conditions": [
+                ["开始时间", "<", f"ExactDate({(dates[-1] + timedelta(days=1)).isoformat()})"],
+                ["结束时间", ">", f"ExactDate({(selected_date - timedelta(days=1)).isoformat()})"]]})
             for predicate in predicates:
                 for row in _query(self.transport, predicate, projected):
                     if row["record_id"] in found and found[row["record_id"]]["fields"] != row["fields"]:
@@ -436,27 +480,37 @@ class TimelineReader:
                     row = self.transport.get(mapping["remote_id"])
                     if row:
                         found[row["record_id"]] = row
-        items = []
+        from .heatmap import CATEGORIES, _heatmap_item, _merge_heatmap_items, _totals
+        items, heat_items = [], []
         for row in found.values():
             item = _item(row["fields"], row["record_id"], mapping_by_id.get(row["record_id"]), blocks, schema, self.store, left, right, timestamp)
             if item:
                 items.append(item)
+                heat_items.append(_heatmap_item(copy.deepcopy(item), row["fields"], left, right))
         items = _merge_items(items) + _ai_items(self.store, blocks, left, right)
+        heat_items = _merge_heatmap_items(heat_items)
+        recorded_totals = _totals(heat_items, left, right, blocks)
+        recorded_totals["categories"] = {category: _totals(
+            [item for item in heat_items if item.get("category") == category], left, right, blocks)
+            for category in CATEGORIES}
         for item in items:
             item["estimated_intervals"] = [window for window in item.get("estimated_intervals", [])
                 if not _sleep_conflict(window, item.get("activity_id"), items, blocks, self.store, timestamp)]
+        if day_start_hour:
+            represented = {ref["id"] for item in items for ref in item.get("source_refs", []) if ref.get("type") == "evidence"}
+            items += _raw_reports(self.store, left, right, represented)
         items.sort(key=lambda item: (item["start_ms"] if item["start_ms"] is not None else item["report_ms"] if item["report_ms"] is not None else day_right, item["id"]))
         raw_hash = digest(sorted((rid, row["fields"]) for rid, row in found.items()))
-        return {"date": day, "timezone": "Asia/Taipei", "day_start_ms": left, "day_end_ms": day_right,
+        return {"date": day, "day_start_hour": day_start_hour, "timezone": "Asia/Taipei", "day_start_ms": left, "day_end_ms": day_right,
                 "as_of_ms": timestamp, "server_now_ms": timestamp, "display_end_ms": max(left, right),
                 "data_revision": digest({"records": raw_hash, "items": items}), "source_hash": raw_hash,
-                "items": items, "summary": _summary(items), "completeness": "partial",
+                "items": items, "summary": _summary(items), "recorded_totals": recorded_totals, "completeness": "partial",
                 "source_snapshot_atomic": False,
                 "consistency": "完整有界读取的同一组数据计算明细与汇总；Base接口不提供跨页原子快照。重复记录若中途变化则保留旧缓存。",
                 "limitations": ["无日期且没有已保存报告来源的旧记录无法归入某一天。", "正式表记录区间不自动等于有效人工投入。", "AI后台为已整理证据，单列且不写作人工Base工时。", "Base分页没有原子快照版本；无法排除读取期间未观察到的并发增删。"]}
 
-    def history(self, day, cursor=None, limit=100, *, refresh=False):
-        _bounds(day)
+    def history(self, day, cursor=None, limit=100, *, refresh=False, day_start_hour=0):
+        left, right = _bounds(day, day_start_hour)
         if type(limit) is not int or not 1 <= limit <= 100:
             raise ValueError("timeline_page_limit")
         if type(refresh) is not bool:
@@ -466,9 +520,12 @@ class TimelineReader:
         sleep_refs = {ref for block in local_state[0].values() if _sleep_identity(block) for ref in block.get("evidence_refs", [])}
         state_hash = digest({"display_version": TIMELINE_DISPLAY_VERSION, "mappings": local_state[1],
             "activities": [(key, value["revision"]) for key, value in sorted(local_state[0].items())],
+            "reports": self._report_revision(left, right) if day_start_hour else None,
             "sleep_sources": [(e["id"], e["current_observation_id"]) for e in _evidence(self.store, sorted(sleep_refs))]})
         source = getattr(self.transport, "table_key", None)
         cache_key = "desktop_timeline_cache:" + (digest(source)[:24] + ":" if source is not None else "") + day
+        if day_start_hour:
+            cache_key += ":start:" + str(day_start_hour)
         cached = self.store.get_setting(cache_key)
         cache_state, error = "fresh", None
         offset = 0
@@ -476,7 +533,8 @@ class TimelineReader:
             try:
                 token = json.loads(base64.urlsafe_b64decode(cursor.encode("ascii")))
                 offset = token["offset"]
-                if not cached or token["revision"] != cached["data_revision"] or token["date"] != day or type(offset) is not int or offset < 0:
+                if (not cached or token["revision"] != cached["data_revision"] or token["date"] != day
+                        or token.get("day_start_hour", 0) != day_start_hour or type(offset) is not int or offset < 0):
                     raise ValueError()
             except (ValueError, TypeError, KeyError, UnicodeError):
                 raise ValueError("timeline_cursor_expired") from None
@@ -488,7 +546,7 @@ class TimelineReader:
             cache_state = "cached"
         else:
             try:
-                snapshot = self._fetch(day, timestamp, local_state)
+                snapshot = self._fetch(day, timestamp, local_state, day_start_hour)
                 snapshot["local_state_hash"] = state_hash
                 # One setting write commits the complete snapshot and its totals.
                 self.store.set_setting(cache_key, snapshot)
@@ -525,11 +583,19 @@ class TimelineReader:
         result["server_now_ms"] = timestamp
         result["cache"] = {"state": cache_state, "as_of_ms": snapshot["as_of_ms"], "refresh_error": error,
                            "min_refresh_interval_ms": self.cache_ttl_ms}
-        result["next_cursor"] = base64.urlsafe_b64encode(packed({"date": day, "revision": result["data_revision"], "offset": offset + limit}).encode("utf-8")).decode("ascii") if offset + limit < total else None
+        result["next_cursor"] = base64.urlsafe_b64encode(packed({"date": day, "day_start_hour": day_start_hour, "revision": result["data_revision"], "offset": offset + limit}).encode("utf-8")).decode("ascii") if offset + limit < total else None
         return result
 
+    def _report_revision(self, left, right):
+        with self.store.lock:
+            return [tuple(row) for row in self.store.db.execute("""SELECT m.message_key,m.current_observation_id,o.kind
+                FROM messages m JOIN observations o ON o.observation_id=m.current_observation_id
+                WHERE m.app_scope=? AND m.message_type='text'
+                AND m.message_created_at_ms>=? AND m.message_created_at_ms<? ORDER BY m.message_key""",
+                (self.store.scope, left, right))]
 
-def timeline_history(store, config, day, cursor=None, limit=100, *, refresh=False):
+
+def timeline_history(store, config, day, cursor=None, limit=100, *, refresh=False, day_start_hour=0):
     from .feishu import Feishu
     base = config.get("base_token")
     table = config.get("time_table_id") or config.get("table_id")
@@ -539,4 +605,12 @@ def timeline_history(store, config, day, cursor=None, limit=100, *, refresh=Fals
         raise ValueError("desktop_formal_source_not_configured")
     platform = Feishu(config["app_id"], config["app_secret"])
     transport = HttpBaseTransport(platform, base, table)
-    return TimelineReader(store, transport).history(day, cursor, limit, refresh=refresh)
+    result = TimelineReader(store, transport).history(day, cursor, limit, refresh=refresh, day_start_hour=day_start_hour)
+    if day_start_hour:
+        from .daily_goals import DailyGoalReader
+        standards = config.get("time_standards_table_id")
+        result["daily_goals"] = (DailyGoalReader(store, HttpBaseTransport(platform, base, standards),
+            settings_url=f"https://my.feishu.cn/base/{base}?table={standards}").read(day) if standards else
+            {"date": day, "source": "feishu", "work_hours": None, "study_hours": None,
+             "cache": {"state": "unavailable", "refresh_error": "not_configured"}})
+    return result

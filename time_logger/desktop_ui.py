@@ -11,11 +11,12 @@ from PySide6.QtWidgets import (
     QApplication, QCheckBox, QComboBox, QDialog, QDialogButtonBox,
     QFrame, QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QMainWindow,
     QMenu, QMessageBox, QPlainTextEdit, QProgressBar, QPushButton, QScrollArea, QSizePolicy,
-    QSlider, QSystemTrayIcon, QToolButton, QTreeWidget, QTreeWidgetItem,
+    QSlider, QSplitter, QSystemTrayIcon, QToolButton, QTreeWidget, QTreeWidgetItem,
     QVBoxLayout, QWidget,
 )
 
 from .timeline_widget import TimelineWidget, clock, duration, TAIPEI, palette_tokens
+from .day_window import DAY_START_HOUR, recording_date
 from .timeline_hover import TimelineHoverCard
 from .date_picker import DualColumnDateEdit
 from .desktop_windows import ensure_native_visible, suppress_native_transitions
@@ -51,6 +52,11 @@ QDateEdit, QComboBox { background: $surface; border: 1px solid $line; border-rad
 QComboBox::drop-down, QDateEdit::drop-down { border: 0; width: 20px; }
 QComboBox QAbstractItemView { background: $surface; selection-background-color: $work_fill; }
 QScrollArea { background: $surface; border: 0; border-top: 1px solid $line; }
+QScrollArea#historyOverview { border: 0; }
+QWidget#historyOverviewContent { background: $surface; }
+QSplitter#historySplitter::handle:vertical { background: $canvas; border-top: 1px solid $line; border-bottom: 1px solid $line; }
+QSplitter#historySplitter::handle:vertical:hover { background: $work_fill; }
+QFrame#historyGrip { background: $muted; border: 0; border-radius: 1px; }
 QListWidget, QTreeWidget { background: $surface; border: 0; font-size: 12px; }
 QListWidget::item { padding: 6px 0; }
 QListWidget::item:selected, QTreeWidget::item:selected { background: $work_fill; color: $ink; }
@@ -249,7 +255,8 @@ class ActivityDialog(QDialog):
                 else:
                     actor = {"human": "本人", "ai": "AI后台"}.get(sub.get("actor"), "")
                     parent.addChild(QTreeWidgetItem([str(sub.get("name", "子任务")), actor]))
-        source_name = "服务器保存的桌面原文" if item.get("source") == "desktop_raw" else str(item.get("source") or "飞书正式时间表")
+        source_name = {"desktop_raw": "随手记原文（待整理）", "feishu_raw": "飞书聊天原文（待整理）",
+                       "feishu_base": "飞书正式时间表"}.get(item.get("source"), str(item.get("source") or "飞书正式时间表"))
         source = row("来源与修订", source_name)
         for record_id in item.get("record_ids") or []:
             source.addChild(QTreeWidgetItem(["正式记录", str(record_id)]))
@@ -293,6 +300,7 @@ class DesktopWindow(QMainWindow):
         self._overview_mode = True
         self._daily_progress = {}
         self._daily_progress_status = "正在读取"
+        self._today = recording_date().isoformat()
         self.setWindowTitle("个人时间记录 · 随手记")
         self.setWindowIcon(application_icon())
         self.setMinimumSize(380, 265)
@@ -330,6 +338,9 @@ class DesktopWindow(QMainWindow):
             self.resize(460, 740 if expanded else 300)
             self.settings.setValue("layout_version", "reference-1.3")
         self.set_expanded(expanded, remember=False)
+        history_size = self.settings.value("history/splitter")
+        if history_size:
+            self.history_splitter.restoreState(history_size)
         self._keep_on_screen()
         self.pin.setChecked(self.settings.value("topmost", False, type=bool))
         self._update_submit_enabled()
@@ -427,8 +438,8 @@ class DesktopWindow(QMainWindow):
             goals_layout.addLayout(row)
         outer.addWidget(self.goals)
         self.goal_timer = QTimer(self)
-        self.goal_timer.setInterval(30000)
-        self.goal_timer.timeout.connect(self._render_daily_progress)
+        self.goal_timer.setInterval(1000)
+        self.goal_timer.timeout.connect(self._day_tick)
         self.goal_timer.start()
         self._render_daily_progress()
         self.compact_summary = QLabel("正在读取最近记录…")
@@ -449,6 +460,11 @@ class DesktopWindow(QMainWindow):
         hist = QVBoxLayout(self.history)
         hist.setContentsMargins(0, 0, 0, 0)
         hist.setSpacing(0)
+        overview = QWidget()
+        overview.setObjectName("historyOverviewContent")
+        overview_layout = QVBoxLayout(overview)
+        overview_layout.setContentsMargins(0, 0, 0, 0)
+        overview_layout.setSpacing(0)
         nav = QHBoxLayout()
         nav.setContentsMargins(18, 2, 18, 8)
         nav.setSpacing(4)
@@ -460,7 +476,7 @@ class DesktopWindow(QMainWindow):
         self.date_edit = DualColumnDateEdit()
         self.date_edit.setDisplayFormat("yyyy-MM-dd")
         self.date_edit.setFixedWidth(113)
-        today = datetime.now(TAIPEI).date()
+        today = recording_date()
         self.date_edit.setDate(QDate(today.year, today.month, today.day))
         self.date_edit.dateChanged.connect(self._date_changed)
         nav.addWidget(self.date_edit)
@@ -474,21 +490,21 @@ class DesktopWindow(QMainWindow):
         self.overview_button.setChecked(True)
         self.overview_button.clicked.connect(lambda: self.set_time_zoom(3))
         self.zoom_button.clicked.connect(lambda: self.set_time_zoom(8))
-        hist.addLayout(nav)
+        overview_layout.addLayout(nav)
         self.summary_label = QLabel("")
         self.summary_label.setObjectName("summary")
         self.summary_label.setContentsMargins(18, 0, 18, 6)
         self.summary_label.setWordWrap(True)
         self.summary_label.setMaximumHeight(55)
         self.summary_label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
-        hist.addWidget(self.summary_label)
+        overview_layout.addWidget(self.summary_label)
         self.sync_label = QLabel("尚未取得正式历史")
         self.sync_label.setObjectName("sync")
         self.sync_label.setContentsMargins(18, 0, 18, 5)
         self.sync_label.setWordWrap(True)
         self.sync_label.setMaximumHeight(35)
         self.sync_label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
-        hist.addWidget(self.sync_label)
+        overview_layout.addWidget(self.sync_label)
         self.cluster_button = QPushButton("")
         self.cluster_button.setObjectName("cluster")
         self.cluster_button.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
@@ -496,7 +512,7 @@ class DesktopWindow(QMainWindow):
         cluster_row = QHBoxLayout()
         cluster_row.setContentsMargins(18, 0, 18, 7)
         cluster_row.addWidget(self.cluster_button)
-        hist.addLayout(cluster_row)
+        overview_layout.addLayout(cluster_row)
         self.cluster_button.hide()
 
         self.scroll = QScrollArea()
@@ -578,7 +594,34 @@ class DesktopWindow(QMainWindow):
         self.question_frame.hide()
         axis_layout.addWidget(self.question_frame)
         self.scroll.setWidget(axis_container)
-        hist.addWidget(self.scroll, 1)
+        self.history_overview = QScrollArea()
+        self.history_overview.setObjectName("historyOverview")
+        self.history_overview.setWidgetResizable(True)
+        self.history_overview.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.history_overview.setMinimumHeight(40)
+        self.history_overview.setWidget(overview)
+        self.history_splitter = QSplitter(Qt.Orientation.Vertical)
+        self.history_splitter.setObjectName("historySplitter")
+        self.history_splitter.setChildrenCollapsible(False)
+        self.history_splitter.setHandleWidth(9)
+        self.history_splitter.addWidget(self.history_overview)
+        self.history_splitter.addWidget(self.scroll)
+        self.history_splitter.setStretchFactor(0, 0)
+        self.history_splitter.setStretchFactor(1, 1)
+        self.history_splitter.setSizes([overview.sizeHint().height(), 70])
+        handle = self.history_splitter.handle(1)
+        handle.setToolTip("上下拖动，调整时间线显示高度")
+        handle.setAccessibleName("调整时间线显示高度")
+        grip = QFrame(handle)
+        grip.setObjectName("historyGrip")
+        grip.setFixedSize(32, 3)
+        grip.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        grip_layout = QVBoxLayout(handle)
+        grip_layout.setContentsMargins(0, 0, 0, 0)
+        grip_layout.addWidget(grip, alignment=Qt.AlignmentFlag.AlignCenter)
+        self.history_splitter.splitterMoved.connect(
+            lambda *_: self.settings.setValue("history/splitter", self.history_splitter.saveState()))
+        hist.addWidget(self.history_splitter, 1)
 
         self.selection_frame = QFrame()
         self.selection_frame.setObjectName("selection")
@@ -669,6 +712,12 @@ class DesktopWindow(QMainWindow):
         self.draft_timer.setSingleShot(True)
         self.draft_timer.setInterval(180)
         self.draft_timer.timeout.connect(self._save_draft)
+
+    def _fit_history_overview(self):
+        if not self.settings.contains("history/splitter"):
+            height = self.history_overview.widget().sizeHint().height()
+            self.history_splitter.setSizes([
+                height, max(70, self.history_splitter.height() - height - self.history_splitter.handleWidth())])
 
     def set_time_zoom(self, value, focus_ms=None):
         self.timeline_hover.dismiss()
@@ -860,8 +909,10 @@ class DesktopWindow(QMainWindow):
         self._render_daily_progress()
 
     def _render_daily_progress(self):
-        today = datetime.now(TAIPEI).date().isoformat()
+        today = recording_date().isoformat()
         snapshot = self._daily_progress
+        if snapshot.get("day_start_hour") != DAY_START_HOUR:
+            snapshot = {}
         day = next((item for item in snapshot.get("days", []) if item.get("date") == today), {})
         cache = snapshot.get("cache", {})
         as_of = snapshot.get("as_of_ms")
@@ -898,7 +949,7 @@ class DesktopWindow(QMainWindow):
             status.setText("● " + state)
             status.setStyleSheet("font-size: 12px; color: " + color + ";")
             tooltip = (f"今日 {today} · {category}已记录时长 / 每日目标\n"
-                       "按 UTC+8 自然日；分类内重叠去重，缺少起止不补算，明确 AI 后台执行排除。\n"
+                       "按 UTC+8 当日 07:00 至次日 07:00；分类内重叠去重，缺少起止不补算，明确 AI 后台执行排除。\n"
                        "沿用热力图的确定与估算区间口径，不等于净人工投入；工作与学习不相加。\n"
                        "目标来自飞书；在“··· → 每日目标（飞书）”查看与修改入口。")
             if goals.get("valid_from") and goals.get("valid_until"):
@@ -1062,11 +1113,12 @@ class DesktopWindow(QMainWindow):
             self.axis_note.setText("Codex 按需整理；起止未知保留缺口，记录区间不等于净人工投入。")
         if items:
             latest = max(items, key=lambda a: a.get("report_ms") or a.get("start_ms") or 0)
-            compact += f" · 最近：{latest.get('name', '活动')}"
+            origin = "飞书原文" if latest.get("source") == "feishu_raw" else "随手记原文" if latest.get("source") == "desktop_raw" else ""
+            compact += f" · 最近{origin}：{latest.get('name', '活动')}"
         elif human is None and not raw_only:
             compact = "当天无可用记录；不能据此判定投入为零"
         server_now = snapshot.get("server_now_ms")
-        today = datetime.fromtimestamp(server_now / 1000, TAIPEI).date().isoformat() if server_now else datetime.now(TAIPEI).date().isoformat()
+        today = recording_date(datetime.fromtimestamp(server_now / 1000, TAIPEI) if server_now else None).isoformat()
         if snapshot.get("date") and snapshot["date"] != today:
             compact = f"回看 {snapshot['date']} · " + compact
         self.compact_summary.setText(compact)
@@ -1079,7 +1131,7 @@ class DesktopWindow(QMainWindow):
             prefix = "服务器原文"
         elif snapshot.get("mode") == "desktop_organized" and prefix == "正式历史":
             prefix = "按需整理"
-        self.sync_label.setText(f"{prefix}截至 {clock(as_of, True)} · {clock(self.timeline.scale.start_ms)}—{clock(self.timeline.scale.end_ms)}" + (" · 同步受阻" if cache.get("refresh_error") else ""))
+        self.sync_label.setText(f"{prefix}截至 {clock(as_of, True)} · 当日07:00—次日07:00" + (" · 同步受阻" if cache.get("refresh_error") else ""))
         self.connection_label.setText("已连接记录" if prefix in ("正式历史", "服务器原文", "按需整理") else "查看缓存")
         self.unlocated.clear()
         unlocated = [a for a in items if a.get("start_ms") is None and a.get("end_ms") is None and a.get("report_ms") is None]
@@ -1103,6 +1155,7 @@ class DesktopWindow(QMainWindow):
         if self._last_snapshot_date != snapshot.get("date"):
             self._last_snapshot_date = snapshot.get("date")
             self._latest_scroll_requested = True
+        self._fit_history_overview()
         self.overview_timer.start(0)
 
     def receive_pending(self, pending):
@@ -1200,7 +1253,7 @@ class DesktopWindow(QMainWindow):
         return self.date_edit.date().toString("yyyy-MM-dd")
 
     def _choose_relative_date(self, offset):
-        day = datetime.now(TAIPEI).date() + timedelta(days=offset)
+        day = recording_date() + timedelta(days=offset)
         chosen = QDate(day.year, day.month, day.day)
         if self.date_edit.date() == chosen:
             self.refresh()
@@ -1212,6 +1265,7 @@ class DesktopWindow(QMainWindow):
         self._latest_scroll_requested = True
         self._snapshot = {}
         self._last_snapshot_date = None
+        self.compact_summary.setText("正在读取该日记录…")
         self.summary_label.setText("正在读取该日正式历史…")
         self.sync_label.setText("日期只影响回看；普通新记录仍按本次提交时刻保存")
         self.timeline.hide()
@@ -1230,7 +1284,20 @@ class DesktopWindow(QMainWindow):
             self.sync_label.setText("该日历史暂时无法读取；原有缓存保留")
 
     def refresh(self):
+        self._day_tick()
         self.controller.refresh(self.selected_date())
+
+    def _day_tick(self):
+        today = recording_date().isoformat()
+        if today != self._today:
+            previous, self._today = self._today, today
+            if self.selected_date() == previous:
+                self.date_edit.setDate(QDate.fromString(today, "yyyy-MM-dd"))
+            # Also refresh today's progress while browsing an older day.
+            if hasattr(self.controller, "daily_progress_requested"):
+                self.controller.daily_progress_requested = True
+                self.controller.wakeup.set()
+        self._render_daily_progress()
 
     def set_expanded(self, expanded, *, remember=True):
         changed = expanded != self._expanded
@@ -1352,6 +1419,8 @@ class DesktopWindow(QMainWindow):
 
     def showEvent(self, event):
         super().showEvent(event)
+        self._fit_history_overview()
+        self._day_tick()
         self._request_latest_scroll()
         if hasattr(self.controller, "set_visible"):
             self.controller.set_visible(True)

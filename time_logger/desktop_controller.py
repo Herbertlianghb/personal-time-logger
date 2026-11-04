@@ -9,6 +9,7 @@ from PySide6.QtCore import QObject, Signal
 
 from .desktop_local import LocalState
 from .desktop_transport import DeviceTransport, SyncUnavailable
+from .day_window import DAY_START_HOUR, recording_date
 
 LOCAL_TZ = timezone(timedelta(hours=8))
 MIRROR_PENDING = frozenset({"queued", "sending", "retry"})
@@ -40,8 +41,9 @@ class DesktopController(QObject):
         super().__init__()
         self.local = LocalState(state_path)
         self.transport = transport or DeviceTransport(config)
-        self.day = datetime.now(LOCAL_TZ).date().isoformat()
+        self.day = recording_date().isoformat()
         self.visible = False
+        self.quick_input_visible = False
         self.wakeup = threading.Event()
         self.closed = threading.Event()
         self.thread = None
@@ -152,7 +154,7 @@ class DesktopController(QObject):
             return False
 
     def load_cached(self, day):
-        cached = self.local.cache(day)
+        cached = self.local.cache(day, DAY_START_HOUR)
         if cached:
             cached = {**cached, "cache": {**cached.get("cache", {}), "local_cached": True, "stale": True}}
             self.last_snapshot = cached
@@ -178,7 +180,7 @@ class DesktopController(QObject):
         self.heatmap_requested = True
         self.heatmap_force = bool(refresh)
         self.heatmap_generation += 1
-        key = "heatmap:" + ("year:" if scope == "year" else "") + self.heatmap_month
+        key = "heatmap:start:7:" + ("year:" if scope == "year" else "") + self.heatmap_month
         cached = self.local.preference(key)
         if cached:
             self.heatmap_snapshot.emit({**cached, "cache": {**cached.get("cache", {}), "state": "stale", "local_cached": True}})
@@ -196,8 +198,10 @@ class DesktopController(QObject):
             raise ValueError("heatmap_month_mismatch")
         if value.get("scope", "month") != scope:
             raise ValueError("heatmap_scope_not_supported")
+        if value.get("day_start_hour") != DAY_START_HOUR:
+            raise ValueError("heatmap_day_boundary_not_supported")
         if value.get("as_of_ms") and value.get("cache", {}).get("state") != "stale" and not value.get("error"):
-            key = "heatmap:" + ("year:" if scope == "year" else "") + month
+            key = "heatmap:start:7:" + ("year:" if scope == "year" else "") + month
             self.local.set_preference(key, value)
         if month == self.heatmap_month and scope == self.heatmap_scope:
             self.heatmap_snapshot.emit(value)
@@ -208,7 +212,11 @@ class DesktopController(QObject):
             self.heatmap_force = False
 
     def _publish_daily_progress(self, value):
-        today = datetime.now(LOCAL_TZ).date().isoformat()
+        today = recording_date().isoformat()
+        if value.get("day_start_hour") != DAY_START_HOUR:
+            return False
+        if "recorded_totals" in value:
+            value = {**value, "days": [{"date": value["date"], **value["recorded_totals"]}]}
         if not any(item.get("date") == today for item in value.get("days", [])):
             return False
         self.daily_progress.emit(value)
@@ -222,27 +230,36 @@ class DesktopController(QObject):
         return True
 
     def _refresh_daily_progress(self):
-        month = datetime.now(LOCAL_TZ).strftime("%Y-%m")
-        result = self.transport.request("heatmap", month=month, scope="month", refresh=False)
-        value = result.get("heatmap", result)
-        if value.get("month") != month or not isinstance(value.get("days"), list):
-            raise ValueError("daily_progress_month_mismatch")
+        today = recording_date().isoformat()
+        result = self.transport.request("history", date=today, day_start_hour=DAY_START_HOUR, limit=1)
+        value = result.get("history", result)
+        if value.get("date") != today:
+            raise ValueError("daily_progress_date_mismatch")
         if not self._publish_daily_progress(value):
             raise ValueError("daily_progress_day_missing")
         if value.get("as_of_ms") and not value.get("error") and value.get("cache", {}).get("state") != "stale":
-            self.local.set_preference("heatmap:" + month, value)
+            self.local.set_preference("daily_progress:start:7", value)
 
     def set_visible(self, value):
         self.visible = bool(value)
         if value:
-            month = datetime.now(LOCAL_TZ).strftime("%Y-%m")
-            cached = self.local.preference("heatmap:" + month)
+            cached = self.local.preference("daily_progress:start:7")
             if cached:
                 self._publish_daily_progress({**cached, "cache": {**cached.get("cache", {}), "local_cached": True}})
             self.daily_progress_requested = True
             self.refresh_requested = True
             self.refresh_generation += 1
             self.wakeup.set()
+
+    def set_quick_input_visible(self, value):
+        self.quick_input_visible = bool(value)
+        if value:
+            self.daily_progress_requested = True
+            self.refresh_requested = True
+            self.wakeup.set()
+
+    def _reading_visible(self):
+        return self.visible or self.quick_input_visible
 
     def retry_sync(self):
         """Request one immediate worker pass without touching its connection."""
@@ -281,14 +298,17 @@ class DesktopController(QObject):
             self._watch_chat_mirror(item["client_submission_id"], item)
         self.remote_pending = result.get("pending", [])
         self.questions.emit(result.get("questions", []))
-        history = self.transport.request("history", date=requested_day)
+        history = self.transport.request("history", date=requested_day, day_start_hour=DAY_START_HOUR)
         value = history.get("history", history)
         if value.get("date") != requested_day:
             raise ValueError("history_date_mismatch")
+        if value.get("day_start_hour") != DAY_START_HOUR:
+            raise ValueError("history_day_boundary_not_supported")
         while value.get("next_cursor"):
-            page = self.transport.request("history", date=requested_day, cursor=value["next_cursor"])
+            page = self.transport.request("history", date=requested_day, day_start_hour=DAY_START_HOUR, cursor=value["next_cursor"])
             page = page.get("history", page)
-            if page.get("data_revision") != value.get("data_revision") or page.get("date") != requested_day:
+            if (page.get("data_revision") != value.get("data_revision") or page.get("date") != requested_day
+                    or page.get("day_start_hour") != DAY_START_HOUR):
                 raise ValueError("history_page_version_changed")
             value["items"] = value.get("items", value.get("activities", [])) + page.get("items", page.get("activities", []))
             value["activities"] = value["items"]
@@ -296,12 +316,15 @@ class DesktopController(QObject):
             if len(value["items"]) > 20000:
                 raise ValueError("history_page_bound")
         if not self.local.save_history(value):
-            cached = self.local.cache(requested_day)
+            cached = self.local.cache(requested_day, DAY_START_HOUR)
             if cached and cached.get("as_of_ms", 0) > value.get("as_of_ms", 0):
                 value = {**cached, "cache": {**cached.get("cache", {}), "stale": True, "local_cached": True}}
         if requested_day == self.day:
             self.last_snapshot = value
             self.snapshot.emit(value)
+        if self._publish_daily_progress(value):
+            if value.get("cache", {}).get("state") != "stale" and not value.get("error"):
+                self.local.set_preference("daily_progress:start:7", value)
         self.refresh_requested = requested_day != self.day or requested_generation != self.refresh_generation
         self.state.emit(self.latest_save_status())
 
@@ -320,12 +343,12 @@ class DesktopController(QObject):
                 self.refresh_generation += 1
                 self.daily_progress_requested = True
             queued = self.local.queued() if now >= upload_retry_after else []
-            refresh_due = self.visible and now >= refresh_retry_after and (
+            refresh_due = self._reading_visible() and now >= refresh_retry_after and (
                 self.refresh_requested or now - last_refresh >= 60)
             mirror_due = self.visible and now >= self.mirror_next_poll and any(
                 deadline > now for deadline in self.mirror_watch.values())
             heatmap_due = self.heatmap_visible and self.heatmap_requested and now >= heatmap_retry_after
-            progress_due = self.visible and now >= progress_retry_after and (
+            progress_due = self._reading_visible() and now >= progress_retry_after and (
                 self.daily_progress_requested or now - self.daily_progress_refreshed_at >= 60)
             if not (queued or refresh_due or mirror_due or heatmap_due or progress_due or retry):
                 self.wakeup.wait(timeout=5)
@@ -369,7 +392,7 @@ class DesktopController(QObject):
                         self.state.emit(self.latest_save_status() + "（上传暂时同步受阻；本机待上传原文保留，恢复后自动重试）")
                 # A read failure has its own backoff: it cannot hold up a new
                 # queued upload or revoke an already durable server receipt.
-                should_refresh = not upload_failed and self.visible and time.monotonic() >= refresh_retry_after and (
+                should_refresh = not upload_failed and self._reading_visible() and time.monotonic() >= refresh_retry_after and (
                     self.refresh_requested or uploaded or time.monotonic() - last_refresh >= 60)
                 if should_refresh:
                     try:
@@ -394,7 +417,7 @@ class DesktopController(QObject):
                         heatmap_failures += 1
                         heatmap_retry_after = time.monotonic() + min(30, 5 * 2 ** min(heatmap_failures - 1, 3))
                         self.heatmap_state.emit("热力图暂时无法读取，将自动重试；请确认服务端已升级且已配置时间表。已有缓存仅供参考。")
-                if (not self.closed.is_set() and not upload_failed and not history_failed and self.visible
+                if (not self.closed.is_set() and not upload_failed and not history_failed and self._reading_visible()
                         and not self.local.queued() and time.monotonic() >= progress_retry_after) and (
                         self.daily_progress_requested or uploaded or time.monotonic() - self.daily_progress_refreshed_at >= 60):
                     try:

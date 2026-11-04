@@ -9,7 +9,7 @@ import sys
 import tempfile
 import time
 
-VERSION = "1.4.15"
+VERSION = "1.4.18"
 
 
 def data_directory():

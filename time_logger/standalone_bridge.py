@@ -168,7 +168,7 @@ class StandaloneBridge(DesktopBridge):
             raise BridgeError("invalid_cursor")
         if type(refresh) is not bool:
             raise BridgeError("invalid_refresh")
-        return history(self.store, request["date"], cursor, limit)
+        return history(self.store, request["date"], cursor, limit, day_start_hour=request.get("day_start_hour", 0))
 
     def heatmap(self, request):
         from .standalone_views import heatmap

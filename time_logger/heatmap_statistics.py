@@ -65,7 +65,10 @@ def _as_of(snapshot, end, dates):
     timestamp = snapshot.get("as_of_ms")
     if type(timestamp) in (int, float) and math.isfinite(timestamp):
         try:
-            return datetime.fromtimestamp(timestamp / 1000, LOCAL_TZ).date()
+            hour = snapshot.get("day_start_hour", 0)
+            if type(hour) is not int or not 0 <= hour <= 23:
+                hour = 0
+            return (datetime.fromtimestamp(timestamp / 1000, LOCAL_TZ) - timedelta(hours=hour)).date()
         except (ValueError, OverflowError, OSError):
             pass
     # The snapshot owns the time context. Never make the same saved response

@@ -135,6 +135,8 @@ def validate_proposal(proposal, evidence, current_blocks=()):
                 raise InvalidProposal("time_quote_not_in_evidence")
             elif kind == "explicit_user" and not _explicit_clock_matches(value, claim["quote"], source, claim.get("precision")):
                 raise InvalidProposal("explicit_time_does_not_match_cited_expression")
+            if "basis" in claim:
+                _validate_window_basis(claim, block, sources, refs)
         start, end = block["start"]["value_ms"], block["end"]["value_ms"]
         if start is not None and end is not None and end < start:
             raise InvalidProposal("negative_window")
@@ -170,3 +172,37 @@ def validate_proposal(proposal, evidence, current_blocks=()):
         if not question.get("evidence_refs") or any(ref not in sources for ref in question["evidence_refs"]):
             raise InvalidProposal("question_without_evidence")
     return True
+
+
+def _validate_window_basis(claim, block, sources, refs):
+    """Verify a reported/relative window without promoting it to measured effort."""
+    basis = claim.get("basis")
+    if (claim.get("kind") != "estimate" or claim.get("precision") != "approximate"
+            or claim.get("date_resolution") not in {"explicit", "contextual"}
+            or not isinstance(basis, dict) or not re.search(r"估算|报告", block.get("uncertainty", ""))):
+        raise InvalidProposal("window_basis_requires_estimate")
+    anchor = sources.get(basis.get("anchor_source_id"))
+    quote = basis.get("anchor_quote")
+    value, offset = basis.get("anchor_value_ms"), basis.get("offset_seconds")
+    if (not anchor or anchor["id"] not in refs or anchor.get("kind") == "recall"
+            or not quote or quote not in (anchor.get("content") or "")
+            or type(value) is not int or type(offset) is not int or abs(offset) > 86400
+            or re.search(r"不确定|可能|大概|记不清|[?？]", quote)):
+        raise InvalidProposal("invalid_window_anchor")
+    kind = basis.get("anchor_kind")
+    if kind == "report_anchor":
+        if (value != anchor.get("created_at_ms") or anchor.get("source") == "formal_record"
+                or anchor.get("source") == "desktop" and anchor.get("desktop_context", {}).get("report_time_trust") != "near_server_clock"):
+            raise InvalidProposal("untrusted_window_report_anchor")
+    elif kind != "explicit_user" or not _explicit_clock_matches(value, quote, anchor, "minute"):
+        raise InvalidProposal("window_explicit_anchor_mismatch")
+    if offset:
+        durations = []
+        for match in re.finditer(r"([零〇一二两三四五六七八九十\d]{1,6})\s*(秒钟?|分钟|小时)", claim.get("quote", "")):
+            quantity = _chinese_number(match[1])
+            if quantity is not None:
+                durations.append(quantity * (3600 if match[2] == "小时" else 60 if match[2] == "分钟" else 1))
+        if abs(offset) not in durations:
+            raise InvalidProposal("window_offset_without_cited_duration")
+    if claim["value_ms"] != value + offset * 1000:
+        raise InvalidProposal("window_boundary_arithmetic_mismatch")
